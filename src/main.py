@@ -128,15 +128,20 @@ class MainWindow(QWidget):
 
         main_layout.addLayout(control_layout)  # Agrega control_layout a main_layout
 
-        # Agregar QTextEdit para ZPL
+        # Layout para QTextEdit y el botón de borrar
+        zpl_layout = QVBoxLayout()
         self.zpl_textedit = QTextEdit()
         self.zpl_textedit.setPlaceholderText("Ingrese el ZPL aquí...")
-        main_layout.addWidget(self.zpl_textedit)  # Añadir al layout principal
+        zpl_layout.addWidget(self.zpl_textedit)
 
         # Botón para borrar el contenido de QTextEdit
-        # self.clear_zpl_button = QPushButton("Borrar ZPL")
-        # self.clear_zpl_button.clicked.connect(self.zpl_textedit.clear)
-        # control_layout.addWidget(self.clear_zpl_button)
+        self.clear_zpl_button = QPushButton("Borrar ZPL")
+        self.clear_zpl_button.clicked.connect(self.zpl_textedit.clear)
+        zpl_layout.addWidget(self.clear_zpl_button)
+
+        # Agregar los layouts al layout principal
+        main_layout.addLayout(control_layout)
+        main_layout.addLayout(zpl_layout)  # Añadir el layout de ZPL al layout principal
 
         self.setLayout(main_layout)
 
@@ -188,11 +193,13 @@ class MainWindow(QWidget):
 
     def toggle_pause(self):
         # Cambia el estado de pausa
-        self.is_paused = not self.is_paused
-        # Cambia el texto del botón basado en el nuevo estado de pausa
-        self.pause_button.setText("Reanudar" if self.is_paused else "Pausar")
         if self.print_thread and self.print_thread.isRunning():
+            self.pause_button.setText("Reanudar")
+            self.is_paused = True
             self.print_thread.toggle_pause()
+        else:
+            self.pause_button.setText("Pausar")
+            self.is_paused = False
 
     def update_status(self, message):
         self.status_label.setText(message)
