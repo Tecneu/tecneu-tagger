@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QTextEdit
-from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase
+    QMessageBox, QTextEdit, QSlider
+from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase, QPixmap
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
 import time
 from zebra import Zebra
@@ -111,6 +111,31 @@ class MainWindow(QWidget):
         self.delay_entry.setValidator(validator)
         # self.delay_entry.textChanged.connect(self.check_delay_value)
         control_layout.addWidget(self.delay_entry)
+
+        # Configuración del QSlider para el retraso
+        self.delay_slider_layout = QHBoxLayout()
+        self.delay_slider = QSlider(Qt.Horizontal)
+        self.delay_slider.setMinimum(1)
+        self.delay_slider.setMaximum(10)
+        self.delay_slider.setValue(5)  # Valor predeterminado
+        self.delay_slider.setTickInterval(1)
+        self.delay_slider.setTickPosition(QSlider.TicksBelow)
+
+        # Icono de tortuga para el lado lento
+        self.turtle_icon_label = QLabel()
+        turtle_pixmap = QPixmap("../assets/icons/turtle.svg").scaled(20, 20, Qt.KeepAspectRatio)
+        self.turtle_icon_label.setPixmap(turtle_pixmap)
+        self.delay_slider_layout.addWidget(self.turtle_icon_label)
+
+        self.delay_slider_layout.addWidget(self.delay_slider)
+
+        # Icono de conejo para el lado rápido
+        self.rabbit_icon_label = QLabel()
+        rabbit_pixmap = QPixmap("../assets/icons/rabbit.png").scaled(20, 20, Qt.KeepAspectRatio)
+        self.rabbit_icon_label.setPixmap(rabbit_pixmap)
+        self.delay_slider_layout.addWidget(self.rabbit_icon_label)
+
+        control_layout.addLayout(self.delay_slider_layout)
 
         self.start_button = QPushButton("Iniciar Impresión")
         self.start_button.clicked.connect(self.start_printing)
