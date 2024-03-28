@@ -1,8 +1,10 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QTextEdit, QSlider
+    QMessageBox, QTextEdit, QSlider, QComboBox
 from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase, QPixmap
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize
 import time
+import subprocess
+import json
 from zebra import Zebra
 
 
@@ -10,7 +12,7 @@ class PrintThread(QThread):
     update_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, copies, delay, zpl, printer_name='ZD410'):
+    def __init__(self, copies, delay, zpl, printer_name):
         super().__init__()
         self.copies = copies
         self.delay = delay
@@ -18,40 +20,63 @@ class PrintThread(QThread):
         self.printer_name = printer_name
         self.pause = False
         self.stopped = False
+        self.manually_stopped = False
 
     def run(self):
         z = Zebra(self.printer_name)
         z.setqueue(self.printer_name)
-        #         label = """
-        # ^XA
-        # ^CI28
-        # ^LH0,0
-        # ^FO75,18^BY2^BCN,54,N,N^FDSMBG62283^FS
-        # ^FT160,98^A0N,22,22^FH^FDSMBG62283^FS
-        # ^FT159,98^A0N,22,22^FH^FDSMBG62283^FS
-        # ^FO62,115^A0N,18,18^FB304,2,0,L^FH^FD120 Cables Jumpers Dupont H_2Dh_2C M_2Dm_2C H_2Dm 10cm Para Protoboard^FS
-        # ^FO62,150^A0N,18,18^FB304,1,0,L^FH^FDMixto (40 C/U)^FS
-        # ^FO61,150^A0N,18,18^FB304,1,0,L^FH^FDMixto (40 C/U)^FS
-        # ^FO62,170^A0N,18,18^FH^FDCod. Universal: 788194520596^FS
-        # ^FO62,170^A0N,18,18^FH^FD^FS
-        # ^PQ1,0,1,Y^XZ
-        # """
         for i in range(self.copies):
             if self.stopped:
+                self.manually_stopped = True  # Indicar que la impresión fue detenida manualmente
                 break
             while self.pause:
                 time.sleep(1)
+            print(f"Numero de copia: {i}")
             z.output(self.zpl)
             self.update_signal.emit(f"Etiquetas restantes: {self.copies - i - 1}")
             if i < self.copies - 1:
                 time.sleep(self.delay)
-        self.finished_signal.emit()
+        if not self.manually_stopped:  # Emitir la señal solo si no se detuvo manualmente
+            self.finished_signal.emit()
 
     def toggle_pause(self):
         self.pause = not self.pause
 
     def stop_printing(self):
         self.stopped = True
+
+
+def list_printers_to_json():
+    cmd = 'wmic printer get name, ExtendedPrinterStatus, PortName, Local, WorkOffline, PrinterStatus, DeviceID, EnableBIDI'
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True)
+
+    # Dividir el resultado en líneas
+    lines = result.stdout.strip().split('\n')
+
+    # La primera línea contiene los nombres de las columnas
+    columns = [column.strip() for column in lines[0].split('  ') if column]
+
+    # Lista para almacenar los diccionarios de cada impresora
+    printers = []
+
+    # Procesar cada impresora
+    for line in lines[1:]:
+        if not line.strip():  # Si la línea está vacía, continuar
+            continue
+        values = [value.strip() for value in line.split('  ') if value]
+        # Asegurarse de que el número de valores no exceda el número de columnas
+        values = values[:len(columns)]
+        # Llenar con None si faltan valores
+        while len(values) < len(columns):
+            values.append(None)
+        printer = {columns[i]: values[i] for i in range(len(columns))}
+        printers.append(printer)
+
+    # Convertir la lista en JSON
+    return json.dumps(printers, indent=4)
+
+
+json_printers = json.loads(list_printers_to_json());
 
 
 class CustomDoubleValidator(QDoubleValidator):
@@ -85,8 +110,8 @@ class MainWindow(QWidget):
         super().__init__()
         self.init_ui()
         self.print_thread = None
-        # Inicializa un atributo para llevar el seguimiento del estado de pausa
-        self.is_paused = False
+        self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
+        self.is_paused = False  # Inicializa un atributo para llevar el seguimiento del estado de pausa
 
     def init_ui(self):
         self.setWindowTitle("Tecneu - Tagger")
@@ -103,6 +128,7 @@ class MainWindow(QWidget):
         self.copies_entry.setPlaceholderText("Número de copias")
         # Aplicar validador para asegurar solo entrada de enteros
         self.copies_entry.setValidator(QIntValidator(0, 999))
+        self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
         control_layout.addWidget(self.copies_entry)
 
         self.delay_entry = QLineEdit()
@@ -123,7 +149,7 @@ class MainWindow(QWidget):
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
-        turtle_pixmap = QPixmap("../assets/icons/turtle.svg").scaled(20, 20, Qt.KeepAspectRatio)
+        turtle_pixmap = QPixmap("../assets/icons/turtle-du.svg").scaled(35, 35, Qt.KeepAspectRatio)
         self.turtle_icon_label.setPixmap(turtle_pixmap)
         self.delay_slider_layout.addWidget(self.turtle_icon_label)
 
@@ -131,7 +157,7 @@ class MainWindow(QWidget):
 
         # Icono de conejo para el lado rápido
         self.rabbit_icon_label = QLabel()
-        rabbit_pixmap = QPixmap("../assets/icons/rabbit.png").scaled(20, 20, Qt.KeepAspectRatio)
+        rabbit_pixmap = QPixmap("../assets/icons/rabbit-running-du.svg").scaled(35, 35, Qt.KeepAspectRatio)
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
 
@@ -157,10 +183,57 @@ class MainWindow(QWidget):
         zpl_layout = QVBoxLayout()
         self.zpl_textedit = QTextEdit()
         self.zpl_textedit.setPlaceholderText("Ingrese el ZPL aquí...")
+        self.zpl_textedit.textChanged.connect(self.validate_and_update_copies_from_zpl)
         zpl_layout.addWidget(self.zpl_textedit)
+
+        # Creación del menú desplegable para las impresoras
+        self.printer_selector = QComboBox()
+        self.printer_selector.addItem(QIcon("../assets/icons/printer.svg"), "Seleccione una impresora",
+                                      None)  # Opción por defecto
+        # self.printer_selector.addItem(QIcon("../assets/icons/printer.svg"), "Impresora 1", None)
+
+        # self.printer_selector.setStyleSheet("""
+        #     QComboBox:on {
+        #         padding-top: 15px;
+        #         padding-left: 15px;
+        #     }
+        # """)
+
+        #         self.printer_selector.setStyleSheet("""
+        #                 QComboBox:!editable, QComboBox::drop-down:editable {
+        #      background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+        #                                  stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,
+        #                                  stop: 0.5 #D8D8D8, stop: 1.0 #D3D3D3);
+        # }
+        #         """)
+
+        # Filtra y agrega los nombres de las impresoras al menú desplegable
+        for printer in json_printers:
+            if printer["EnableBIDI"] == "TRUE":
+                self.printer_selector.addItem(QIcon("../assets/icons/printer.svg"), printer['Name'],
+                                              printer['DeviceID'])
+
+        self.printer_selector.currentTextChanged.connect(self.on_printer_selected)  # Conectar la señal al método
+        zpl_layout.addWidget(self.printer_selector)
 
         # Botón para borrar el contenido de QTextEdit
         self.clear_zpl_button = QPushButton("Borrar ZPL")
+        # Establecer el ícono en el botón
+        self.clear_zpl_button.setIcon(QIcon("../assets/icons/delete-left.svg"))
+        # // padding: 0px 20px 0px 0px;
+        # // margin: 15px
+        self.clear_zpl_button.setStyleSheet("""
+    QPushButton {
+        text-align: left;
+        padding: 5px 10px;
+    }
+    QPushButton::icon {
+        position: absolute;
+        left: 50px;  /* Alinear el ícono a la derecha */
+    }
+""")
+        # Establecer el tamaño del ícono (opcional)
+        self.clear_zpl_button.setIconSize(QSize(20, 20))
         self.clear_zpl_button.clicked.connect(self.zpl_textedit.clear)
         zpl_layout.addWidget(self.clear_zpl_button)
 
@@ -170,13 +243,77 @@ class MainWindow(QWidget):
 
         self.setLayout(main_layout)
 
+    def validate_and_update_copies_from_zpl(self):
+        zpl_text = self.zpl_textedit.toPlainText()
+        pq_index = zpl_text.find('^PQ')
+        if pq_index != -1:
+            # Encuentra el número de copias en el ZPL
+            start_index = pq_index + 3
+            end_index = zpl_text.find(',', start_index)
+            if end_index == -1:
+                end_index = len(zpl_text)
+
+            copies_str = zpl_text[start_index:end_index]
+            if copies_str.isdigit():
+                self.copies_entry.setText(copies_str)
+
+    def update_zpl_from_copies(self):
+        copies_text = self.copies_entry.text()
+        if copies_text.isdigit():
+            new_copies = int(copies_text)
+            zpl_text = self.zpl_textedit.toPlainText()
+            pq_index = zpl_text.find('^PQ')
+            if pq_index != -1:
+                # Reemplazar el número de copias existente
+                start_index = pq_index + 3
+                end_index = zpl_text.find(',', start_index)
+                if end_index == -1:
+                    end_index = len(zpl_text)
+                new_zpl_text = zpl_text[:start_index] + str(new_copies) + zpl_text[end_index:]
+                self.zpl_textedit.setPlainText(new_zpl_text)
+            else:
+                # Añadir la instrucción ^PQ con el número de copias al final si no existe
+                self.zpl_textedit.setPlainText(zpl_text + f"\n^PQ{new_copies},0,1,Y^XZ")
+
+    def on_printer_selected(self, name):
+        if name != "Seleccione una impresora":
+            self.selected_printer_name = name
+            print(name)
+
     def keyPressEvent(self, event):
-        print(event.key())
-        # Verifica si la tecla presionada es la tecla espacio
-        if event.key() == Qt.Key_Space:
+        key = event.key()
+
+        if key == Qt.Key_Left:
+            # Disminuir el valor del slider
+            self.delay_slider.setValue(self.delay_slider.value() - 1)
+        elif key == Qt.Key_Right:
+            # Aumentar el valor del slider
+            self.delay_slider.setValue(self.delay_slider.value() + 1)
+        elif key == Qt.Key_Space:
+            # Pausar/reanudar la impresión
             self.toggle_pause()
+            # Si se reanuda, comienza inmediatamente con la siguiente impresión sin esperar el delay
+            if not self.is_paused and self.print_thread is not None:
+                self.print_thread.pause = False
+        elif key == Qt.Key_F5:
+            # Iniciar/detener la impresión
+            if self.print_thread is None or not self.print_thread.isRunning():
+                self.start_printing()
+            else:
+                self.stop_printing()
         else:
             super().keyPressEvent(event)  # Llama al método base para manejar otras teclas
+
+    def stop_printing(self):
+        if self.print_thread:
+            self.print_thread.stop_printing()
+            self.print_thread = None
+            self.status_label.setText("Impresión detenida.")
+            # Reestablecer el UI para permitir una nueva impresión
+            self.start_button.setEnabled(True)
+            self.pause_button.setEnabled(False)
+            self.pause_button.setText("Pausar")
+            QMessageBox.information(self, "Impresión detenida", "La impresión ha sido detenida.")
 
     def check_delay_value(self, text):
         try:
@@ -211,7 +348,7 @@ class MainWindow(QWidget):
 
         self.start_button.setEnabled(False)
         self.pause_button.setEnabled(True)
-        self.print_thread = PrintThread(copies, delay, zpl_text)
+        self.print_thread = PrintThread(copies, delay, zpl_text, self.selected_printer_name)
         self.print_thread.update_signal.connect(self.update_status)
         self.print_thread.finished_signal.connect(self.printing_finished)
         self.print_thread.start()
@@ -237,7 +374,7 @@ class MainWindow(QWidget):
         self.pause_button.setText("Pausar")  # Restablece el texto del botón de pausa
         self.is_paused = False  # Restablece el estado de pausa
         self.status_label.setText("Impresión completada.")
-        QMessageBox.information(self, "Impresión completada", "Todas las etiquetas han sido impresas.")
+        # QMessageBox.information(self, "Impresión completada", "Todas las etiquetas han sido impresas.")
 
 
 if __name__ == "__main__":
@@ -248,7 +385,7 @@ if __name__ == "__main__":
         "../assets/fonts/proxima-nova/ProximaNovaWide-Regular.otf")  # Ajusta la ruta a tu archivo de fuente
     fontFamilies = QFontDatabase.applicationFontFamilies(novaMediumId)
     if fontFamilies:  # Verifica si la fuente se cargó correctamente
-        novaMediumFont = QFont(fontFamilies[0], 9)  # Establece el tamaño de la fuente a 10 puntos
+        novaMediumFont = QFont(fontFamilies[0], 9, 600)  # Establece el tamaño de la fuente a 10 puntos
         # novaMediumFont.setLetterSpacing(QFont.PercentageSpacing, 110)  # Aumenta el espaciado entre letras en un 10%
         app.setFont(novaMediumFont)  # Aplica la fuente a toda la aplicación
 
