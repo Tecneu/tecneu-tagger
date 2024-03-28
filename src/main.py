@@ -9,6 +9,9 @@ from zebra import Zebra
 
 
 class PrintThread(QThread):
+    """
+    Clase para gestionar la impresión en un hilo separado.
+    """
     update_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
@@ -23,6 +26,9 @@ class PrintThread(QThread):
         self.manually_stopped = False
 
     def run(self):
+        """
+        Método principal del hilo que maneja el proceso de impresión.
+        """
         z = Zebra(self.printer_name)
         z.setqueue(self.printer_name)
         for i in range(self.copies):
@@ -40,13 +46,22 @@ class PrintThread(QThread):
             self.finished_signal.emit()
 
     def toggle_pause(self):
+        """
+        Método para pausar o reanudar la impresión.
+        """
         self.pause = not self.pause
 
     def stop_printing(self):
+        """
+        Método para detener la impresión.
+        """
         self.stopped = True
 
 
 def list_printers_to_json():
+    """
+    Función que lista las impresoras disponibles y devuelve una cadena JSON con los detalles.
+    """
     cmd = 'wmic printer get name, ExtendedPrinterStatus, PortName, Local, WorkOffline, PrinterStatus, DeviceID, EnableBIDI'
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True)
 
@@ -80,6 +95,9 @@ json_printers = json.loads(list_printers_to_json());
 
 
 class CustomDoubleValidator(QDoubleValidator):
+    """
+    Validador personalizado para asegurar que el valor ingresado es un número de punto flotante dentro de un rango.
+    """
     def __init__(self, bottom, top, decimals, parent=None):
         super().__init__(bottom, top, decimals, parent)
 
@@ -106,6 +124,9 @@ class CustomDoubleValidator(QDoubleValidator):
 
 
 class MainWindow(QWidget):
+    """
+    Clase principal de la ventana que gestiona la interfaz de usuario y las interacciones.
+    """
     def __init__(self):
         super().__init__()
         self.init_ui()
@@ -114,6 +135,9 @@ class MainWindow(QWidget):
         self.is_paused = False  # Inicializa un atributo para llevar el seguimiento del estado de pausa
 
     def init_ui(self):
+        """
+        Configura la interfaz de usuario de la ventana principal.
+        """
         self.setWindowTitle("Tecneu - Tagger")
         self.setGeometry(800, 100, 800, 400)  # x, y, width, height
 
