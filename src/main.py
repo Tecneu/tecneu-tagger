@@ -14,6 +14,7 @@ class PrintThread(QThread):
     """
     update_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
+    error_signal = pyqtSignal(str)
 
     def __init__(self, copies, delay, zpl, printer_name):
         super().__init__()
@@ -30,7 +31,11 @@ class PrintThread(QThread):
         Método principal del hilo que maneja el proceso de impresión.
         """
         z = Zebra(self.printer_name)
-        z.setqueue(self.printer_name)
+        try:
+            z.setqueue(self.printer_name)
+        except Exception as e:
+            self.error_signal.emit(f"Error al establecer la cola de la impresora{': ' if str(e) else ''}{e}.")
+            return
         for i in range(self.copies):
             if self.stopped:
                 self.manually_stopped = True  # Indicar que la impresión fue detenida manualmente
@@ -38,7 +43,11 @@ class PrintThread(QThread):
             while self.pause:
                 time.sleep(1)
             print(f"Numero de copia: {i}")
-            z.output(self.zpl)
+            try:
+                z.output(self.zpl)
+            except Exception as e:
+                self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
+                break
             self.update_signal.emit(f"Etiquetas restantes: {self.copies - i - 1}")
             if i < self.copies - 1:
                 time.sleep(self.delay)
@@ -127,12 +136,16 @@ class MainWindow(QWidget):
     """
     Clase principal de la ventana que gestiona la interfaz de usuario y las interacciones.
     """
+
     def __init__(self):
         super().__init__()
         self.init_ui()
         self.print_thread = None
         self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
         self.is_paused = False  # Inicializa un atributo para llevar el seguimiento del estado de pausa
+
+    def show_error_message(self, message):
+        QMessageBox.critical(self, "Error", message)
 
     def init_ui(self):
         """
@@ -302,9 +315,26 @@ class MainWindow(QWidget):
     def on_printer_selected(self, name):
         if name != "Seleccione una impresora":
             self.selected_printer_name = name
-            print(name)
+
+    def clear_focus(self):
+        """
+        Método para quitar el foco de cualquier widget.
+        """
+        focused_widget = self.focusWidget()
+        if focused_widget:
+            focused_widget.clearFocus()
+
+    def mousePressEvent(self, event):
+        """
+        Quita el foco de cualquier widget cuando se hace clic fuera de ellos en la ventana.
+        """
+        self.clear_focus()
+        super().mousePressEvent(event)
 
     def keyPressEvent(self, event):
+        """
+        Maneja eventos de teclado para quitar el foco y otros controles.
+        """
         key = event.key()
 
         if key == Qt.Key_Left:
@@ -321,6 +351,7 @@ class MainWindow(QWidget):
                 self.print_thread.pause = False
         elif key == Qt.Key_F5:
             # Iniciar/detener la impresión
+            self.clear_focus()
             if self.print_thread is None or not self.print_thread.isRunning():
                 self.start_printing()
             else:
@@ -351,7 +382,6 @@ class MainWindow(QWidget):
         copies_text = self.copies_entry.text()
         delay_text = self.delay_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
-        print(zpl_text)
 
         # Asegurarse de que los campos no estén vacíos
         if not copies_text or not delay_text:
@@ -375,17 +405,19 @@ class MainWindow(QWidget):
         self.print_thread = PrintThread(copies, delay, zpl_text, self.selected_printer_name)
         self.print_thread.update_signal.connect(self.update_status)
         self.print_thread.finished_signal.connect(self.printing_finished)
+        self.print_thread.error_signal.connect(self.show_error_message)
         self.print_thread.start()
 
     def toggle_pause(self):
         # Cambia el estado de pausa
         if self.print_thread and self.print_thread.isRunning():
-            self.pause_button.setText("Reanudar")
-            self.is_paused = True
+            if self.is_paused:
+                self.pause_button.setText("Pausar")
+                self.is_paused = False
+            else:
+                self.pause_button.setText("Reanudar")
+                self.is_paused = True
             self.print_thread.toggle_pause()
-        else:
-            self.pause_button.setText("Pausar")
-            self.is_paused = False
 
     def update_status(self, message):
         self.status_label.setText(message)
