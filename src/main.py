@@ -6,6 +6,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize, QPoint, QTimer, QSettin
 import re
 import time
 import subprocess
+import threading
 import json
 from zebra import Zebra
 
@@ -27,6 +28,8 @@ class PrintThread(QThread):
         self.pause = False
         self.stopped = False
         self.manually_stopped = False
+        self.condition = threading.Condition()
+        self.delay_updated = False  # Nuevo flag para rastrear la actualización del delay
 
     def run(self):
         """
@@ -56,11 +59,31 @@ class PrintThread(QThread):
                 break
             self.update_signal.emit(f"Etiquetas restantes: {self.copies - i - 1}")
             # Mapeo inverso para el delay
-            inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)  # Mapeo de 50->0.7 y 1->12
-            if i < self.copies - 1:
-                time.sleep(inverse_delay)
+            with self.condition:
+                inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)  # Mapeo de 50->0.7 y 1->12
+                self.condition.wait(inverse_delay)
+
+                if self.delay_updated:
+                    # Si el delay fue actualizado, espera con el nuevo delay y resetea el flag
+                    inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)
+                    self.condition.wait(inverse_delay)
+                    self.delay_updated = False
+
+            # if i < self.copies - 1:
+            #     time.sleep(inverse_delay)
+
         if not self.manually_stopped:  # Emitir la señal solo si no se detuvo manualmente
             self.finished_signal.emit()
+
+    def set_delay(self, delay):
+        """
+        Actualiza el valor de delay para la impresión en tiempo real.
+        """
+        # self.delay = delay
+        with self.condition:
+            self.delay = delay
+            self.delay_updated = True
+            self.condition.notify()  # Notificar al hilo de la actualización
 
     def toggle_pause(self):
         """
@@ -117,7 +140,8 @@ class CustomTextEdit(QTextEdit):
             text = source.text()
             # Elimina espacios en blanco y comillas dobles al principio y al final
             text = text.strip().strip('"')
-            super(CustomTextEdit, self).insertPlainText(text)  # Usa insertPlainText para evitar la inserción de texto formateado
+            super(CustomTextEdit, self).insertPlainText(
+                text)  # Usa insertPlainText para evitar la inserción de texto formateado
 
 
 class MainWindow(QWidget):
@@ -134,6 +158,9 @@ class MainWindow(QWidget):
         self.slider_label_timer = QTimer(self)
         self.slider_label_timer.setInterval(2000)  # 2000 ms = 2 s
         self.slider_label_timer.setSingleShot(True)
+        self.delay_update_timer = QTimer(self)  # Timer para actualizar el delay
+        self.delay_update_timer.setInterval(500)  # Intervalo antes de actualizar el delay
+        self.delay_update_timer.setSingleShot(True)
         self.updating_copies = False  # Flag para controlar la recursión entre métodos
         self.updating_zpl = False  # Flag para controlar la recursión entre métodos
         self.init_ui()
@@ -142,6 +169,18 @@ class MainWindow(QWidget):
         self.slider_label_timer.timeout.connect(self.slider_label_frame.hide)
         self.slider_label_timer.timeout.connect(self.slider_label.hide)
         self.slider_label_timer.timeout.connect(self.saveSliderValue)
+        self.delay_update_timer.timeout.connect(self.apply_new_delay)
+        self.delay_slider.valueChanged.connect(self.schedule_delay_update)
+
+    def schedule_delay_update(self):
+        # Reinicia el temporizador cada vez que el valor del slider cambia
+        self.delay_update_timer.start()
+
+    def apply_new_delay(self):
+        # Aplica el nuevo delay al hilo de impresión
+        new_delay = self.delay_slider.value()
+        if self.print_thread is not None:
+            self.print_thread.set_delay(new_delay)
 
     def loadSettings(self):
         # Cargar el nombre de la impresora seleccionada
@@ -413,7 +452,6 @@ class MainWindow(QWidget):
 
     # Modificar update_slider_label para ajustar la posición del frame
     def update_slider_label(self, value):
-
         self.slider_label.setText(str(value))
         slider_pos = self.delay_slider.pos()
         slider_length = self.delay_slider.width()
@@ -568,6 +606,7 @@ class MainWindow(QWidget):
     def start_printing(self):
         copies_text = self.copies_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
+        delay = self.delay_slider.value()
 
         # Asegurarse de que los campos no estén vacíos
         if not copies_text or not zpl_text:
@@ -592,19 +631,28 @@ class MainWindow(QWidget):
             return
 
         copies = int(copies_text)
-        delay = self.delay_slider.value()
 
         if self.print_thread is not None and self.print_thread.isRunning():
             QMessageBox.warning(self, "Advertencia", "Ya hay un proceso de impresión en curso.")
             return
 
+        # Crea el hilo de impresión si no existe
+        if self.print_thread is None:
+            self.print_thread = PrintThread(copies, delay, zpl_text, self.selected_printer_name)
+            self.print_thread.update_signal.connect(self.update_status)
+            self.print_thread.finished_signal.connect(self.printing_finished)
+            self.print_thread.error_signal.connect(self.show_error_message)
+        else:
+            # Si el hilo ya existe y está ejecutándose, actualiza las propiedades y continúa
+            self.print_thread.copies = copies
+            self.print_thread.zpl = zpl_text
+
         self.start_button.setEnabled(False)
         self.pause_button.setEnabled(True)
-        self.print_thread = PrintThread(copies, delay, zpl_text, self.selected_printer_name)
-        self.print_thread.update_signal.connect(self.update_status)
-        self.print_thread.finished_signal.connect(self.printing_finished)
-        self.print_thread.error_signal.connect(self.show_error_message)
-        self.print_thread.start()
+
+        # Inicia el hilo de impresión si no está en ejecución
+        if not self.print_thread.isRunning():
+            self.print_thread.start()
 
     def toggle_pause(self):
         # Cambia el estado de pausa
