@@ -53,7 +53,8 @@ class PrintThread(QThread):
 
             print(f"Numero de copia: {i}")
             try:
-                z.output(single_copy_zpl)
+                # z.output(single_copy_zpl)
+                print("")
             except Exception as e:
                 self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
                 break
@@ -130,9 +131,7 @@ def list_printers_to_json():
     # Convertir la lista en JSON
     return json.dumps(printers, indent=4)
 
-
 json_printers = json.loads(list_printers_to_json());
-
 
 class CustomTextEdit(QTextEdit):
     def insertFromMimeData(self, source):
@@ -158,9 +157,9 @@ class MainWindow(QWidget):
         self.slider_label_timer = QTimer(self)
         self.slider_label_timer.setInterval(2000)  # 2000 ms = 2 s
         self.slider_label_timer.setSingleShot(True)
-        self.delay_update_timer = QTimer(self)  # Timer para actualizar el delay
-        self.delay_update_timer.setInterval(500)  # Intervalo antes de actualizar el delay
-        self.delay_update_timer.setSingleShot(True)
+        # self.delay_update_timer = QTimer(self)  # Timer para actualizar el delay
+        # self.delay_update_timer.setInterval(500)  # Intervalo antes de actualizar el delay
+        # self.delay_update_timer.setSingleShot(True)
         self.updating_copies = False  # Flag para controlar la recursión entre métodos
         self.updating_zpl = False  # Flag para controlar la recursión entre métodos
         self.init_ui()
@@ -169,12 +168,12 @@ class MainWindow(QWidget):
         self.slider_label_timer.timeout.connect(self.slider_label_frame.hide)
         self.slider_label_timer.timeout.connect(self.slider_label.hide)
         self.slider_label_timer.timeout.connect(self.saveSliderValue)
-        self.delay_update_timer.timeout.connect(self.apply_new_delay)
-        self.delay_slider.valueChanged.connect(self.schedule_delay_update)
+        # self.delay_update_timer.timeout.connect(self.apply_new_delay)
+        # self.delay_slider.valueChanged.connect(self.schedule_delay_update)
 
-    def schedule_delay_update(self):
-        # Reinicia el temporizador cada vez que el valor del slider cambia
-        self.delay_update_timer.start()
+    # def schedule_delay_update(self):
+    #     # Reinicia el temporizador cada vez que el valor del slider cambia
+    #     self.delay_update_timer.start()
 
     def apply_new_delay(self):
         # Aplica el nuevo delay al hilo de impresión
@@ -351,7 +350,7 @@ class MainWindow(QWidget):
         self.slider_label_frame.hide()
 
         # En MainWindow.init_ui(), asegúrate de conectar el valor del slider con update_slider_label
-        self.delay_slider.valueChanged.connect(self.update_slider_label)
+        # self.delay_slider.valueChanged.connect(self.update_slider_label)
 
         control_layout.addLayout(self.delay_slider_layout)
 
@@ -452,6 +451,10 @@ class MainWindow(QWidget):
 
     # Modificar update_slider_label para ajustar la posición del frame
     def update_slider_label(self, value):
+        # Actualiza el delay en el hilo de impresión en tiempo real
+        if self.print_thread is not None:
+            self.print_thread.set_delay(value)
+
         self.slider_label.setText(str(value))
         slider_pos = self.delay_slider.pos()
         slider_length = self.delay_slider.width()
