@@ -172,14 +172,47 @@ class MainWindow(QWidget):
 
         main_layout = QHBoxLayout()  # Usar QHBoxLayout para dividir la ventana
         control_layout = QVBoxLayout()
+        # Contenedor principal para el entry y los botones
+        entry_button_container = QHBoxLayout()
+        entry_button_container.setContentsMargins(0, 0, 0, 0)  # Eliminar márgenes externos
+        entry_button_container.setSpacing(0)  # Eliminar espacio entre elementos
         # self.setLayout(main_layout)
 
+        # Contenedor para el QLineEdit
+        entry_container = QVBoxLayout()
         self.copies_entry = QLineEdit()
         self.copies_entry.setPlaceholderText("Número de copias")
         # Aplicar validador para asegurar solo entrada de enteros
         self.copies_entry.setValidator(QIntValidator(0, 999))
+        # self.copies_entry.setAlignment(Qt.AlignRight)
         self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
-        control_layout.addWidget(self.copies_entry)
+        self.copies_entry.setMinimumHeight(30)  # Aumentar la altura del QLineEdit
+        self.copies_entry.setMaximumWidth(140)  # Aumentar la altura del QLineEdit
+        entry_container.addWidget(self.copies_entry)
+        # entry_container.addStretch()  # Agregar un espacio vacío para alinear el QLineEdit arriba
+
+        # Contenedor para los botones
+        button_container = QVBoxLayout()
+        button_container.setSpacing(0)  # Eliminar espacio entre los botones
+        # button_container.setContentsMargins(0, -7, 0, -7)  # Eliminar márgenes
+        button_container.setContentsMargins(0, 0, 0, 0)  # Eliminar márgenes
+
+        self.incButton = QPushButton('▲', self)
+        self.incButton.clicked.connect(self.increment)
+        self.incButton.setFixedSize(25, 15)  # Disminuir tamaño del botón
+        button_container.addWidget(self.incButton)
+
+        self.decButton = QPushButton('▼', self)
+        self.decButton.clicked.connect(self.decrement)
+        self.decButton.setFixedSize(25, 15)  # Disminuir tamaño del botón
+        button_container.addWidget(self.decButton)
+
+        # Agregar los contenedores al contenedor principal
+        entry_button_container.addLayout(entry_container)
+        entry_button_container.addLayout(button_container)
+
+        # Agregar el contenedor principal al layout de control
+        control_layout.addLayout(entry_button_container)
 
         # Configuración del QSlider para el retraso
         self.delay_slider_layout = QHBoxLayout()
@@ -364,6 +397,28 @@ class MainWindow(QWidget):
 
         self.setLayout(main_layout)
 
+    def increment(self):
+        current_value = self.copies_entry.text()
+        if current_value.isdigit():
+            current_value = int(current_value)
+        elif current_value != '':
+            return
+
+        value = int(current_value or 0)
+        if value < 999:
+            self.copies_entry.setText(str(value + 1))
+
+    def decrement(self):
+        current_value = self.copies_entry.text()
+        if current_value.isdigit():
+            current_value = int(current_value)
+        elif current_value != '':
+            return
+
+        value = int(current_value or 0)
+        if value > 0:
+            self.copies_entry.setText(str(value - 1))
+
     # Modificar update_slider_label para ajustar la posición del frame
     def update_slider_label(self, value):
 
@@ -490,6 +545,11 @@ class MainWindow(QWidget):
                 self.start_printing()
             else:
                 self.stop_printing()
+        elif key in (Qt.Key_Up, Qt.Key_Down):
+            if event.key() == Qt.Key_Up:
+                self.increment()
+            elif event.key() == Qt.Key_Down:
+                self.decrement()
         else:
             super().keyPressEvent(event)  # Llama al método base para manejar otras teclas
 
@@ -576,7 +636,7 @@ class MainWindow(QWidget):
         self.pause_button.setText("Pausar")  # Restablece el texto del botón de pausa
         self.is_paused = False  # Restablece el estado de pausa
         self.status_label.setText("Impresión completada.")
-        # QMessageBox.information(self, "Impresión completada", "Todas las etiquetas han sido impresas.")
+        self.copies_entry.setText('0')
 
     def closeEvent(self, event):
         # Guardar el nombre de la impresora seleccionada
