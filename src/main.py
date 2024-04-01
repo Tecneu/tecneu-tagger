@@ -1,7 +1,8 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
     QMessageBox, QTextEdit, QSlider, QComboBox
-from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase, QPixmap
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize
+from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase, QPixmap, QStandardItemModel, QStandardItem
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize, QPoint, QTimer
+import re
 import time
 import subprocess
 import json
@@ -42,9 +43,13 @@ class PrintThread(QThread):
                 break
             while self.pause:
                 time.sleep(1)
+
+            # Modificar el ZPL para imprimir una copia a la vez
+            single_copy_zpl = re.sub(r'\^PQ[0-9]+', '^PQ1', self.zpl, flags=re.IGNORECASE)
+
             print(f"Numero de copia: {i}")
             try:
-                z.output(self.zpl)
+                z.output(single_copy_zpl)
             except Exception as e:
                 self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
                 break
@@ -107,6 +112,7 @@ class CustomDoubleValidator(QDoubleValidator):
     """
     Validador personalizado para asegurar que el valor ingresado es un número de punto flotante dentro de un rango.
     """
+
     def __init__(self, bottom, top, decimals, parent=None):
         super().__init__(bottom, top, decimals, parent)
 
@@ -143,6 +149,10 @@ class MainWindow(QWidget):
         self.print_thread = None
         self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
         self.is_paused = False  # Inicializa un atributo para llevar el seguimiento del estado de pausa
+        self.slider_label_timer = QTimer(self)
+        self.slider_label_timer.setInterval(2000)  # 2000 ms = 2 s
+        self.slider_label_timer.setSingleShot(True)
+        self.slider_label_timer.timeout.connect(self.slider_label.hide)
 
     def show_error_message(self, message):
         QMessageBox.critical(self, "Error", message)
@@ -168,13 +178,6 @@ class MainWindow(QWidget):
         self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
         control_layout.addWidget(self.copies_entry)
 
-        self.delay_entry = QLineEdit()
-        self.delay_entry.setPlaceholderText("Retraso entre copias (segundos)")
-        validator = CustomDoubleValidator(0, 15.99, 2)
-        self.delay_entry.setValidator(validator)
-        # self.delay_entry.textChanged.connect(self.check_delay_value)
-        control_layout.addWidget(self.delay_entry)
-
         # Configuración del QSlider para el retraso
         self.delay_slider_layout = QHBoxLayout()
         self.delay_slider = QSlider(Qt.Horizontal)
@@ -183,6 +186,7 @@ class MainWindow(QWidget):
         self.delay_slider.setValue(5)  # Valor predeterminado
         self.delay_slider.setTickInterval(1)
         self.delay_slider.setTickPosition(QSlider.TicksBelow)
+        self.delay_slider.valueChanged.connect(self.update_slider_label)
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
@@ -197,6 +201,12 @@ class MainWindow(QWidget):
         rabbit_pixmap = QPixmap("../assets/icons/rabbit-running-du.svg").scaled(35, 35, Qt.KeepAspectRatio)
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
+
+        # Slider label setup
+        self.slider_label = QLabel(self)
+        self.slider_label.setText(str(self.delay_slider.value()))
+        self.slider_label.move(self.delay_slider.pos() + QPoint(0, -30))
+        self.slider_label.hide()
 
         control_layout.addLayout(self.delay_slider_layout)
 
@@ -225,9 +235,12 @@ class MainWindow(QWidget):
 
         # Creación del menú desplegable para las impresoras
         self.printer_selector = QComboBox()
-        self.printer_selector.addItem(QIcon("../assets/icons/printer.svg"), "Seleccione una impresora",
-                                      None)  # Opción por defecto
-        # self.printer_selector.addItem(QIcon("../assets/icons/printer.svg"), "Impresora 1", None)
+        model = QStandardItemModel()
+
+        # Crea el ítem "Seleccione una impresora" y hazlo no seleccionable
+        defaultItem = QStandardItem(QIcon("../assets/icons/printer.svg"), "Seleccione una impresora")
+        defaultItem.setEnabled(False)  # Hace que el ítem sea no seleccionable
+        model.appendRow(defaultItem)
 
         # self.printer_selector.setStyleSheet("""
         #     QComboBox:on {
@@ -247,8 +260,13 @@ class MainWindow(QWidget):
         # Filtra y agrega los nombres de las impresoras al menú desplegable
         for printer in json_printers:
             if printer["EnableBIDI"] == "TRUE":
-                self.printer_selector.addItem(QIcon("../assets/icons/printer.svg"), printer['Name'],
-                                              printer['DeviceID'])
+                item = QStandardItem(printer['Name'])
+                model.appendRow(item)
+
+        self.printer_selector.setModel(model)
+        self.printer_selector.setCurrentIndex(0)  # Establece "Seleccione una impresora" como el valor por defecto
+        # Asegúrate de que "Seleccione una impresora" no sea seleccionable después de la inicialización
+        self.printer_selector.model().item(0).setEnabled(False)
 
         self.printer_selector.currentTextChanged.connect(self.on_printer_selected)  # Conectar la señal al método
         zpl_layout.addWidget(self.printer_selector)
@@ -279,6 +297,14 @@ class MainWindow(QWidget):
         main_layout.addLayout(zpl_layout)  # Añadir el layout de ZPL al layout principal
 
         self.setLayout(main_layout)
+
+    def update_slider_label(self, value):
+        self.slider_label.setText(str(value))
+        slider_pos = self.delay_slider.pos()
+        slider_offset = int(self.delay_slider.width() * (value - self.delay_slider.minimum()) / (self.delay_slider.maximum() - self.delay_slider.minimum()))
+        self.slider_label.move(slider_pos + QPoint(slider_offset - self.slider_label.width() // 2, -30))
+        self.slider_label.show()
+        self.slider_label_timer.start()
 
     def validate_and_update_copies_from_zpl(self):
         zpl_text = self.zpl_textedit.toPlainText()
@@ -370,31 +396,43 @@ class MainWindow(QWidget):
             self.pause_button.setText("Pausar")
             QMessageBox.information(self, "Impresión detenida", "La impresión ha sido detenida.")
 
-    def check_delay_value(self, text):
-        try:
-            value = float(text)
-            if value > 20.99:
-                self.delay_entry.setText("20.99")
-        except ValueError:
-            pass  # En caso de valor no convertible, no hacer nada (el validador manejará esto).
+    def is_valid_zpl(self, zpl_text):
+        """
+        Verifica si el texto proporcionado es un ZPL válido.
+        Esta función es básica y podría necesitar una lógica más compleja para validar ZPL de manera exhaustiva.
+        """
+        if re.search(r'^\^XA.*\^XZ$', zpl_text, re.DOTALL):
+            return True
+        return False
 
     def start_printing(self):
         copies_text = self.copies_entry.text()
-        delay_text = self.delay_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
 
         # Asegurarse de que los campos no estén vacíos
-        if not copies_text or not delay_text:
+        if not copies_text or not zpl_text:
             QMessageBox.warning(self, "Error de validación", "Los campos no pueden estar vacíos.")
             return
 
+        # Verificar que se haya seleccionado una impresora
+        if not self.selected_printer_name or self.selected_printer_name == "Seleccione una impresora":
+            QMessageBox.warning(self, "Impresora no seleccionada",
+                                "Por favor, selecciona una impresora antes de imprimir.")
+            return
+
+        # Validar que el texto ZPL sea válido
+        if not self.is_valid_zpl(zpl_text):
+            QMessageBox.warning(self, "Error de validación", "Por favor, ingresa un código ZPL válido.")
+            return
+
         # Utilizar hasAcceptableInput para verificar si el contenido de los campos es válido
-        if not self.copies_entry.hasAcceptableInput() or not self.delay_entry.hasAcceptableInput():
+        # if not self.copies_entry.hasAcceptableInput() or not self.delay_entry.hasAcceptableInput():
+        if not self.copies_entry.hasAcceptableInput():
             QMessageBox.warning(self, "Error de validación", "Por favor, ingresa valores válidos.")
             return
 
         copies = int(copies_text)
-        delay = float(delay_text)
+        delay = self.delay_slider.value()
 
         if self.print_thread is not None and self.print_thread.isRunning():
             QMessageBox.warning(self, "Advertencia", "Ya hay un proceso de impresión en curso.")
