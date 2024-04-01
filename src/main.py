@@ -172,47 +172,39 @@ class MainWindow(QWidget):
 
         main_layout = QHBoxLayout()  # Usar QHBoxLayout para dividir la ventana
         control_layout = QVBoxLayout()
-        # Contenedor principal para el entry y los botones
-        entry_button_container = QHBoxLayout()
-        entry_button_container.setContentsMargins(0, 0, 0, 0)  # Eliminar márgenes externos
-        entry_button_container.setSpacing(0)  # Eliminar espacio entre elementos
-        # self.setLayout(main_layout)
+        # Contenedor principal para el QLineEdit y los botones
+        entry_frame = QFrame()
+        entry_layout = QHBoxLayout(entry_frame)
+        entry_layout.setContentsMargins(0, 0, 0, 0)
+        entry_layout.setSpacing(0)
 
-        # Contenedor para el QLineEdit
-        entry_container = QVBoxLayout()
-        self.copies_entry = QLineEdit()
+        self.copies_entry = QLineEdit(entry_frame)
         self.copies_entry.setPlaceholderText("Número de copias")
-        # Aplicar validador para asegurar solo entrada de enteros
         self.copies_entry.setValidator(QIntValidator(0, 999))
-        # self.copies_entry.setAlignment(Qt.AlignRight)
+        self.copies_entry.setMinimumHeight(30)
+        self.copies_entry.setMaximumWidth(140)
         self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
-        self.copies_entry.setMinimumHeight(30)  # Aumentar la altura del QLineEdit
-        self.copies_entry.setMaximumWidth(140)  # Aumentar la altura del QLineEdit
-        entry_container.addWidget(self.copies_entry)
-        # entry_container.addStretch()  # Agregar un espacio vacío para alinear el QLineEdit arriba
+        entry_layout.addWidget(self.copies_entry)
 
         # Contenedor para los botones
         button_container = QVBoxLayout()
         button_container.setSpacing(0)  # Eliminar espacio entre los botones
-        # button_container.setContentsMargins(0, -7, 0, -7)  # Eliminar márgenes
-        button_container.setContentsMargins(0, 0, 0, 0)  # Eliminar márgenes
 
-        self.incButton = QPushButton('▲', self)
+        self.incButton = QPushButton('▲')
         self.incButton.clicked.connect(self.increment)
-        self.incButton.setFixedSize(25, 15)  # Disminuir tamaño del botón
+        self.incButton.setFixedSize(25, 15)
         button_container.addWidget(self.incButton)
 
-        self.decButton = QPushButton('▼', self)
+        self.decButton = QPushButton('▼')
         self.decButton.clicked.connect(self.decrement)
-        self.decButton.setFixedSize(25, 15)  # Disminuir tamaño del botón
+        self.decButton.setFixedSize(25, 15)
         button_container.addWidget(self.decButton)
 
-        # Agregar los contenedores al contenedor principal
-        entry_button_container.addLayout(entry_container)
-        entry_button_container.addLayout(button_container)
+        # Añadir el contenedor de botones al layout del frame
+        entry_layout.addLayout(button_container)
 
-        # Agregar el contenedor principal al layout de control
-        control_layout.addLayout(entry_button_container)
+        # Agregar el frame al layout principal
+        control_layout.addWidget(entry_frame)
 
         # Configuración del QSlider para el retraso
         self.delay_slider_layout = QHBoxLayout()
