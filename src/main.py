@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QTextEdit, QSlider, QComboBox
-from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase, QPixmap, QStandardItemModel, QStandardItem
+    QMessageBox, QTextEdit, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect
+from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase, QPixmap, \
+    QStandardItemModel, QStandardItem, QColor
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize, QPoint, QTimer
 import re
 import time
@@ -54,8 +55,10 @@ class PrintThread(QThread):
                 self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
                 break
             self.update_signal.emit(f"Etiquetas restantes: {self.copies - i - 1}")
+            # Mapeo inverso para el delay
+            inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)  # Mapeo de 50->0.7 y 1->12
             if i < self.copies - 1:
-                time.sleep(self.delay)
+                time.sleep(inverse_delay)
         if not self.manually_stopped:  # Emitir la señal solo si no se detuvo manualmente
             self.finished_signal.emit()
 
@@ -152,6 +155,7 @@ class MainWindow(QWidget):
         self.slider_label_timer = QTimer(self)
         self.slider_label_timer.setInterval(2000)  # 2000 ms = 2 s
         self.slider_label_timer.setSingleShot(True)
+        self.slider_label_timer.timeout.connect(self.slider_label_frame.hide)
         self.slider_label_timer.timeout.connect(self.slider_label.hide)
 
     def show_error_message(self, message):
@@ -182,11 +186,44 @@ class MainWindow(QWidget):
         self.delay_slider_layout = QHBoxLayout()
         self.delay_slider = QSlider(Qt.Horizontal)
         self.delay_slider.setMinimum(1)
-        self.delay_slider.setMaximum(10)
-        self.delay_slider.setValue(5)  # Valor predeterminado
+        self.delay_slider.setMaximum(50)
+        self.delay_slider.setValue(25)  # Valor predeterminado
         self.delay_slider.setTickInterval(1)
         self.delay_slider.setTickPosition(QSlider.TicksBelow)
         self.delay_slider.valueChanged.connect(self.update_slider_label)
+
+        self.delay_slider.setStyleSheet("""
+            QSlider::groove:horizontal {
+                border: 1px solid #bbb;
+                background: white;
+                height: 10px;
+                border-radius: 4px;
+            }
+        
+            QSlider::sub-page:horizontal {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66e, stop:1 #bbf);
+                background: qlineargradient(x1: 0, y1: 0.2, x2: 1, y2: 1, stop: 0 #bbf, stop: 1 #55f);
+                border: 1px solid #777;
+                height: 10px;
+                border-radius: 4px;
+            }
+        
+            QSlider::add-page:horizontal {
+                background: #fff;
+                border: 1px solid #777;
+                height: 10px;
+                border-radius: 4px;
+            }
+        
+            QSlider::handle:horizontal {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #eee, stop:1 #ccc);
+                border: 1px solid #777;
+                width: 20px;
+                margin-top: -5px;
+                margin-bottom: -5px;
+                border-radius: 10px;
+            }
+        """)
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
@@ -202,11 +239,36 @@ class MainWindow(QWidget):
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
 
+        self.slider_label_frame = QFrame(self)
+        # border: 1px solid gray;
+        self.slider_label_frame.setStyleSheet("""
+            background-color: white;
+            border: 1px solid gray;
+            border-radius: 5px;
+        """)
+        self.slider_label_frame.setLayout(QVBoxLayout())
+        self.slider_label_frame.setFixedSize(30, 28)
+
         # Slider label setup
-        self.slider_label = QLabel(self)
-        self.slider_label.setText(str(self.delay_slider.value()))
-        self.slider_label.move(self.delay_slider.pos() + QPoint(0, -30))
-        self.slider_label.hide()
+        self.slider_label = QLabel(self.slider_label_frame)
+        self.slider_label.setStyleSheet("""
+            background-color: transparent;
+            border: none;
+        """)
+        self.slider_label.setAlignment(Qt.AlignCenter)
+        self.slider_label_frame.layout().addWidget(self.slider_label)
+
+        shadow_effect = QGraphicsDropShadowEffect()
+        shadow_effect.setBlurRadius(5)
+        shadow_effect.setColor(QColor(0, 0, 0, 60))
+        shadow_effect.setOffset(2, 2)
+        self.slider_label_frame.setGraphicsEffect(shadow_effect)
+
+        # Asegúrate de que el frame esté oculto inicialmente
+        self.slider_label_frame.hide()
+
+        # En MainWindow.init_ui(), asegúrate de conectar el valor del slider con update_slider_label
+        self.delay_slider.valueChanged.connect(self.update_slider_label)
 
         control_layout.addLayout(self.delay_slider_layout)
 
@@ -242,21 +304,6 @@ class MainWindow(QWidget):
         defaultItem.setEnabled(False)  # Hace que el ítem sea no seleccionable
         model.appendRow(defaultItem)
 
-        # self.printer_selector.setStyleSheet("""
-        #     QComboBox:on {
-        #         padding-top: 15px;
-        #         padding-left: 15px;
-        #     }
-        # """)
-
-        #         self.printer_selector.setStyleSheet("""
-        #                 QComboBox:!editable, QComboBox::drop-down:editable {
-        #      background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-        #                                  stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,
-        #                                  stop: 0.5 #D8D8D8, stop: 1.0 #D3D3D3);
-        # }
-        #         """)
-
         # Filtra y agrega los nombres de las impresoras al menú desplegable
         for printer in json_printers:
             if printer["EnableBIDI"] == "TRUE":
@@ -278,15 +325,15 @@ class MainWindow(QWidget):
         # // padding: 0px 20px 0px 0px;
         # // margin: 15px
         self.clear_zpl_button.setStyleSheet("""
-    QPushButton {
-        text-align: left;
-        padding: 5px 10px;
-    }
-    QPushButton::icon {
-        position: absolute;
-        left: 50px;  /* Alinear el ícono a la derecha */
-    }
-""")
+            QPushButton {
+                text-align: left;
+                padding: 5px 10px;
+            }
+            QPushButton::icon {
+                position: absolute;
+                left: 50px;  /* Alinear el ícono a la derecha */
+            }
+        """)
         # Establecer el tamaño del ícono (opcional)
         self.clear_zpl_button.setIconSize(QSize(20, 20))
         self.clear_zpl_button.clicked.connect(self.zpl_textedit.clear)
@@ -298,13 +345,21 @@ class MainWindow(QWidget):
 
         self.setLayout(main_layout)
 
+    # Modificar update_slider_label para ajustar la posición del frame
     def update_slider_label(self, value):
         self.slider_label.setText(str(value))
         slider_pos = self.delay_slider.pos()
-        slider_offset = int(self.delay_slider.width() * (value - self.delay_slider.minimum()) / (self.delay_slider.maximum() - self.delay_slider.minimum()))
-        self.slider_label.move(slider_pos + QPoint(slider_offset - self.slider_label.width() // 2, -30))
+        slider_length = self.delay_slider.width()
+        slider_value = (value - self.delay_slider.minimum()) / (
+                self.delay_slider.maximum() - self.delay_slider.minimum())
+        slider_offset = int(slider_length * slider_value - self.slider_label_frame.width() / 2)
+        self.slider_label_frame.move(slider_pos.x() + slider_offset, slider_pos.y() - 40)
+        self.slider_label_frame.show()
         self.slider_label.show()
-        self.slider_label_timer.start()
+
+        # Reinicia el temporizador cada vez que el valor del slider cambia
+        self.slider_label_timer.stop()
+        self.slider_label_timer.start(2000)  # Asumiendo que slider_label_timer ya está configurado
 
     def validate_and_update_copies_from_zpl(self):
         zpl_text = self.zpl_textedit.toPlainText()
@@ -371,6 +426,7 @@ class MainWindow(QWidget):
             self.delay_slider.setValue(self.delay_slider.value() + 1)
         elif key == Qt.Key_Space:
             # Pausar/reanudar la impresión
+            self.clear_focus()
             self.toggle_pause()
             # Si se reanuda, comienza inmediatamente con la siguiente impresión sin esperar el delay
             if not self.is_paused and self.print_thread is not None:
