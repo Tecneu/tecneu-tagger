@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLi
     QMessageBox, QTextEdit, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect
 from PyQt5.QtGui import QIcon, QValidator, QIntValidator, QDoubleValidator, QFont, QFontDatabase, QPixmap, \
     QStandardItemModel, QStandardItem, QColor
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize, QPoint, QTimer
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize, QPoint, QTimer, QSettings
 import re
 import time
 import subprocess
@@ -111,34 +111,13 @@ def list_printers_to_json():
 json_printers = json.loads(list_printers_to_json());
 
 
-class CustomDoubleValidator(QDoubleValidator):
-    """
-    Validador personalizado para asegurar que el valor ingresado es un número de punto flotante dentro de un rango.
-    """
-
-    def __init__(self, bottom, top, decimals, parent=None):
-        super().__init__(bottom, top, decimals, parent)
-
-    def validate(self, string, pos):
-        # Primero, verifica si el string está vacío, lo cual es siempre aceptable.
-        if not string:
-            return QValidator.Acceptable, string, pos
-
-        # Intenta convertir el string a float y verifica el rango.
-        try:
-            value = float(string)
-            # Divide el string en partes entera y decimal usando el punto como separador.
-            parts = string.split('.')
-            # Verifica si el valor está dentro del rango permitido.
-            if self.bottom() <= value <= self.top():
-                # Si solo hay una parte o la parte decimal es menor o igual a 2 dígitos, es aceptable.
-                if len(parts) == 1 or len(parts[1]) <= 2:
-                    return QValidator.Acceptable, string, pos
-            # Si el valor no está en el rango permitido o tiene más de 2 decimales, es inválido.
-            return QValidator.Invalid, string, pos
-        except ValueError:
-            # Si el string no se puede convertir a float, es inválido.
-            return QValidator.Invalid, string, pos
+class CustomTextEdit(QTextEdit):
+    def insertFromMimeData(self, source):
+        if source.hasText():
+            text = source.text()
+            # Elimina espacios en blanco y comillas dobles al principio y al final
+            text = text.strip().strip('"')
+            super(CustomTextEdit, self).insertPlainText(text)  # Usa insertPlainText para evitar la inserción de texto formateado
 
 
 class MainWindow(QWidget):
@@ -148,15 +127,35 @@ class MainWindow(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.init_ui()
+        self.settings = QSettings('Tecneu', 'TecneuTagger')
         self.print_thread = None
         self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
         self.is_paused = False  # Inicializa un atributo para llevar el seguimiento del estado de pausa
         self.slider_label_timer = QTimer(self)
         self.slider_label_timer.setInterval(2000)  # 2000 ms = 2 s
         self.slider_label_timer.setSingleShot(True)
+        self.updating_copies = False  # Flag para controlar la recursión entre métodos
+        self.updating_zpl = False  # Flag para controlar la recursión entre métodos
+        self.init_ui()
+        self.loadSettings()
+
         self.slider_label_timer.timeout.connect(self.slider_label_frame.hide)
         self.slider_label_timer.timeout.connect(self.slider_label.hide)
+        self.slider_label_timer.timeout.connect(self.saveSliderValue)
+
+    def loadSettings(self):
+        # Cargar el nombre de la impresora seleccionada
+        printer_name = self.settings.value('printer_name', '')
+        index = self.printer_selector.findText(printer_name)
+        if index != -1:
+            self.printer_selector.setCurrentIndex(index)
+
+        # Cargar el último valor del delay slider
+        delay_value = self.settings.value('delay_value', 25, type=int)
+        self.delay_slider.setValue(delay_value)
+
+    def saveSliderValue(self):
+        self.settings.setValue('delay_value', self.delay_slider.value())
 
     def show_error_message(self, message):
         QMessageBox.critical(self, "Error", message)
@@ -196,32 +195,48 @@ class MainWindow(QWidget):
             QSlider::groove:horizontal {
                 border: 1px solid #bbb;
                 background: white;
-                height: 10px;
-                border-radius: 4px;
-            }
-        
-            QSlider::sub-page:horizontal {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66e, stop:1 #bbf);
-                background: qlineargradient(x1: 0, y1: 0.2, x2: 1, y2: 1, stop: 0 #bbf, stop: 1 #55f);
-                border: 1px solid #777;
-                height: 10px;
-                border-radius: 4px;
-            }
-        
-            QSlider::add-page:horizontal {
-                background: #fff;
-                border: 1px solid #777;
-                height: 10px;
+                height: 6px;
                 border-radius: 4px;
             }
         
             QSlider::handle:horizontal {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #eee, stop:1 #ccc);
-                border: 1px solid #777;
-                width: 20px;
-                margin-top: -5px;
-                margin-bottom: -5px;
-                border-radius: 10px;
+                background: #51acff;
+                border: 6px solid #6b6b6b;
+                width: 16px;
+                height: 16px;
+                margin: -6px 0px;
+                border-radius: 9px;
+            }
+        
+            QSlider::handle:horizontal:hover {
+                border: 2px solid #6b6b6b;
+                width: 22px;
+                height: 22px;
+                border-radius: 8px;
+            }
+            
+            QSlider::handle:horizontal:pressed {
+                border: 8px solid #6b6b6b;
+                width: 8px;
+                height: 8px;
+                border-radius: 9px;
+            }
+        
+            QSlider::sub-page:horizontal {
+                /* background: transparent;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66e, stop:1 #bbf);
+                background: qlineargradient(x1: 0, y1: 0.2, x2: 1, y2: 1, stop: 0 #bbf, stop: 1 #55f); */
+                background: #51acff;
+                border: none;
+                height: 6px;
+                border-radius: 4px;
+            }
+        
+            QSlider::add-page:horizontal {
+                background: transparent;
+                border: none;
+                height: 6px;
+                border-radius: 4px;
             }
         """)
 
@@ -245,15 +260,19 @@ class MainWindow(QWidget):
             background-color: white;
             border: 1px solid gray;
             border-radius: 5px;
+            padding: 0px;
+            margin: 0px;
         """)
         self.slider_label_frame.setLayout(QVBoxLayout())
-        self.slider_label_frame.setFixedSize(30, 28)
+        self.slider_label_frame.setFixedSize(35, 28)
 
         # Slider label setup
         self.slider_label = QLabel(self.slider_label_frame)
         self.slider_label.setStyleSheet("""
             background-color: transparent;
             border: none;
+            padding: 0px;
+            margin: 0px;
         """)
         self.slider_label.setAlignment(Qt.AlignCenter)
         self.slider_label_frame.layout().addWidget(self.slider_label)
@@ -290,7 +309,7 @@ class MainWindow(QWidget):
 
         # Layout para QTextEdit y el botón de borrar
         zpl_layout = QVBoxLayout()
-        self.zpl_textedit = QTextEdit()
+        self.zpl_textedit = CustomTextEdit()
         self.zpl_textedit.setPlaceholderText("Ingrese el ZPL aquí...")
         self.zpl_textedit.textChanged.connect(self.validate_and_update_copies_from_zpl)
         zpl_layout.addWidget(self.zpl_textedit)
@@ -347,6 +366,7 @@ class MainWindow(QWidget):
 
     # Modificar update_slider_label para ajustar la posición del frame
     def update_slider_label(self, value):
+
         self.slider_label.setText(str(value))
         slider_pos = self.delay_slider.pos()
         slider_length = self.delay_slider.width()
@@ -362,9 +382,18 @@ class MainWindow(QWidget):
         self.slider_label_timer.start(2000)  # Asumiendo que slider_label_timer ya está configurado
 
     def validate_and_update_copies_from_zpl(self):
-        zpl_text = self.zpl_textedit.toPlainText()
+        if self.updating_zpl:  # Evita la recursión si update_zpl_from_copies ya está en proceso
+            return
+
+        self.updating_copies = True
+        zpl_text = self.zpl_textedit.toPlainText().strip()
+        is_valid_zpl = self.is_valid_zpl(zpl_text)
+
+        if zpl_text == '' or not is_valid_zpl:
+            self.copies_entry.setText('')
+
         pq_index = zpl_text.find('^PQ')
-        if pq_index != -1:
+        if is_valid_zpl and pq_index != -1:
             # Encuentra el número de copias en el ZPL
             start_index = pq_index + 3
             end_index = zpl_text.find(',', start_index)
@@ -375,13 +404,33 @@ class MainWindow(QWidget):
             if copies_str.isdigit():
                 self.copies_entry.setText(copies_str)
 
+        self.updating_copies = False
+
     def update_zpl_from_copies(self):
+        if self.updating_copies:  # Evita la recursión si validate_and_update_copies_from_zpl ya está en proceso
+            return
+
+        self.updating_zpl = True
         copies_text = self.copies_entry.text()
+
+        if copies_text == '':
+            zpl_text = self.zpl_textedit.toPlainText().strip()
+            pq_index = zpl_text.find('^PQ')
+            if pq_index != -1 and self.is_valid_zpl(zpl_text):
+                # Reemplazar el número de copias existente
+                start_index = pq_index + 3
+                end_index = zpl_text.find(',', start_index)
+                if end_index == -1:
+                    end_index = len(zpl_text)
+                new_zpl_text = zpl_text[:start_index] + zpl_text[end_index:]
+                self.zpl_textedit.setPlainText(new_zpl_text)
+
         if copies_text.isdigit():
             new_copies = int(copies_text)
-            zpl_text = self.zpl_textedit.toPlainText()
+            zpl_text = self.zpl_textedit.toPlainText().strip()
+            is_valid_zpl = self.is_valid_zpl(zpl_text)
             pq_index = zpl_text.find('^PQ')
-            if pq_index != -1:
+            if pq_index != -1 and is_valid_zpl:
                 # Reemplazar el número de copias existente
                 start_index = pq_index + 3
                 end_index = zpl_text.find(',', start_index)
@@ -389,13 +438,16 @@ class MainWindow(QWidget):
                     end_index = len(zpl_text)
                 new_zpl_text = zpl_text[:start_index] + str(new_copies) + zpl_text[end_index:]
                 self.zpl_textedit.setPlainText(new_zpl_text)
-            else:
+            elif is_valid_zpl:
                 # Añadir la instrucción ^PQ con el número de copias al final si no existe
                 self.zpl_textedit.setPlainText(zpl_text + f"\n^PQ{new_copies},0,1,Y^XZ")
+
+        self.updating_zpl = False
 
     def on_printer_selected(self, name):
         if name != "Seleccione una impresora":
             self.selected_printer_name = name
+            self.settings.setValue('printer_name', self.printer_selector.currentText())
 
     def clear_focus(self):
         """
@@ -525,6 +577,15 @@ class MainWindow(QWidget):
         self.is_paused = False  # Restablece el estado de pausa
         self.status_label.setText("Impresión completada.")
         # QMessageBox.information(self, "Impresión completada", "Todas las etiquetas han sido impresas.")
+
+    def closeEvent(self, event):
+        # Guardar el nombre de la impresora seleccionada
+        self.settings.setValue('printer_name', self.printer_selector.currentText())
+
+        # Guardar el último valor del delay slider
+        self.settings.setValue('delay_value', self.delay_slider.value())
+
+        super().closeEvent(event)
 
 
 if __name__ == "__main__":
