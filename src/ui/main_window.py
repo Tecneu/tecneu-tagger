@@ -7,8 +7,8 @@ import re
 
 # ui/main_window.py
 from .custom_widgets import CustomTextEdit
-from src.print_thread import PrintThread
-from src.utils import list_printers_to_json
+from print_thread import PrintThread
+from utils import list_printers_to_json
 # from ..main import novaBoldFont
 
 __all__ = ['MainWindow']
