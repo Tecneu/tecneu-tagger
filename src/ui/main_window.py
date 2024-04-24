@@ -4,11 +4,13 @@ from PyQt5.QtCore import QTimer, QSettings, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QIntValidator, QColor, QPixmap, QFont, QStandardItemModel, QStandardItem
 import json
 import re
+from font_config import FontManager
 
 # ui/main_window.py
 from .custom_widgets import CustomTextEdit
 from print_thread import PrintThread
 from utils import list_printers_to_json
+
 # from ..main import novaBoldFont
 
 __all__ = ['MainWindow']
@@ -75,6 +77,14 @@ class MainWindow(QWidget):
         """
         Configura la interfaz de usuario de la ventana principal.
         """
+        fonts = FontManager.get_fonts()
+        robotoBoldFont = None
+        robotoRegularFont = None
+        if fonts and 'robotoBoldFont' in fonts:
+            robotoBoldFont = fonts['robotoBoldFont']
+        if fonts and 'robotoRegularFont' in fonts:
+            robotoRegularFont = fonts['robotoRegularFont']
+
         self.setWindowTitle("Tecneu - Tagger")
         self.setGeometry(800, 100, 800, 400)  # x, y, width, height
 
@@ -102,13 +112,15 @@ class MainWindow(QWidget):
         button_container.setSpacing(0)  # Eliminar espacio entre los botones
 
         self.incButton = QPushButton('▲')
+        if robotoBoldFont: self.incButton.setFont(robotoBoldFont)
         self.incButton.clicked.connect(self.increment)
-        self.incButton.setFixedSize(25, 15)
+        self.incButton.setFixedSize(25, 19)
         button_container.addWidget(self.incButton)
 
         self.decButton = QPushButton('▼')
+        if robotoBoldFont: self.decButton.setFont(robotoBoldFont)
         self.decButton.clicked.connect(self.decrement)
-        self.decButton.setFixedSize(25, 15)
+        self.decButton.setFixedSize(25, 19)
         button_container.addWidget(self.decButton)
 
         # Añadir el contenedor de botones al layout del frame
@@ -178,7 +190,7 @@ class MainWindow(QWidget):
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
-        turtle_pixmap = QPixmap("../../assets/icons/turtle-du.svg").scaled(35, 35, Qt.KeepAspectRatio)
+        turtle_pixmap = QPixmap("../../assets/icons/turtle-du.svg").scaled(60, 60, Qt.KeepAspectRatio)
         self.turtle_icon_label.setPixmap(turtle_pixmap)
         self.delay_slider_layout.addWidget(self.turtle_icon_label)
 
@@ -186,7 +198,7 @@ class MainWindow(QWidget):
 
         # Icono de conejo para el lado rápido
         self.rabbit_icon_label = QLabel()
-        rabbit_pixmap = QPixmap("../../assets/icons/rabbit-running-du.svg").scaled(35, 35, Qt.KeepAspectRatio)
+        rabbit_pixmap = QPixmap("../../assets/icons/rabbit-running-du.svg").scaled(60, 60, Qt.KeepAspectRatio)
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
 
@@ -200,10 +212,13 @@ class MainWindow(QWidget):
             margin: 0px;
         """)
         self.slider_label_frame.setLayout(QVBoxLayout())
-        self.slider_label_frame.setFixedSize(35, 28)
+        self.slider_label_frame.layout().setContentsMargins(0, 0, 0, 0)
+        self.slider_label_frame.layout().setAlignment(Qt.AlignCenter)
+        self.slider_label_frame.setFixedSize(26, 24)
 
         # Slider label setup
         self.slider_label = QLabel(self.slider_label_frame)
+        if robotoRegularFont: self.slider_label.setFont(robotoRegularFont)
         self.slider_label.setStyleSheet("""
             background-color: transparent;
             border: none;
@@ -211,6 +226,7 @@ class MainWindow(QWidget):
             margin: 0px;
         """)
         self.slider_label.setAlignment(Qt.AlignCenter)
+        self.slider_label.setWordWrap(True)  # Enable word wrapping
         self.slider_label_frame.layout().addWidget(self.slider_label)
 
         shadow_effect = QGraphicsDropShadowEffect()
@@ -222,6 +238,9 @@ class MainWindow(QWidget):
         # Asegúrate de que el frame esté oculto inicialmente
         self.slider_label_frame.hide()
 
+        # Ajustar dinámicamente el tamaño del frame al cambiar el texto
+        # self.slider_label.textChanged.connect(self.slider_label_frame.adjustSize())
+
         # En MainWindow.init_ui(), asegúrate de conectar el valor del slider con update_slider_label
         # self.delay_slider.valueChanged.connect(self.update_slider_label)
 
@@ -229,12 +248,12 @@ class MainWindow(QWidget):
 
         self.start_button = QPushButton("Iniciar Impresión")
         self.start_button.clicked.connect(self.start_printing)
-        # self.start_button.setFont(novaBoldFont)
+        if robotoBoldFont: self.start_button.setFont(robotoBoldFont)
         control_layout.addWidget(self.start_button)
 
         self.pause_button = QPushButton("Pausar")
         self.pause_button.clicked.connect(self.toggle_pause)
-        # self.pause_button.setFont(novaBoldFont)
+        if robotoBoldFont: self.pause_button.setFont(robotoBoldFont)
         control_layout.addWidget(self.pause_button)
         self.pause_button.setEnabled(False)  # Inicialmente, el botón de pausa está deshabilitado
 

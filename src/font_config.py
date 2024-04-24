@@ -3,46 +3,62 @@ from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtCore import Qt, QDir
 from pathlib import Path
 
-# Ruta base para las fuentes, se asume que este archivo está en el mismo directorio que la carpeta 'assets'
-BASE_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 
-
-def load_fonts_from_dir(family_name):
-    font_dir = BASE_FONT_PATH / family_name
-    families = set()
-    for fi in QDir(os.fspath(font_dir)).entryInfoList(["*.otf", "*.ttf"]):
-        _id = QFontDatabase.addApplicationFont(fi.absoluteFilePath())
-        families |= set(QFontDatabase.applicationFontFamilies(_id))
-    return families
-
-
-def load_fonts():
-    families = load_fonts_from_dir('proxima-nova')
-    print(families)
-    db = QFontDatabase()
-    styles = db.styles("Proxima Nova")
-    print(styles)
+class FontManager:
+    # Ruta base para las fuentes, se asume que este archivo está en el mismo directorio que la carpeta 'assets'
+    BASE_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts"
     fonts = None
-    # Cargar todas las fuentes necesarias y retornarlas en un diccionario
-    if "Proxima Nova" in families:
-        fonts = {
-            'ProximaNova-Regular': db.font('Proxima Nova', 'Regular', 9),
-            'ProximaNova-Bold': db.font('Proxima Nova', 'Bold', 10)
-        }
-        print("Fonts initialized successfully.")
-    else:
-        raise Exception("Proxima Nova font is not available")
 
-    return fonts
+    @staticmethod
+    def load_fonts_from_dir(family_name):
+        font_dir = FontManager.BASE_FONT_PATH / family_name
+        families = set()
+        for fi in QDir(os.fspath(font_dir)).entryInfoList(["*.otf", "*.ttf"]):
+            _id = QFontDatabase.addApplicationFont(fi.absoluteFilePath())
+            families |= set(QFontDatabase.applicationFontFamilies(_id))
+        return families
 
+    @staticmethod
+    def initialize_fonts():
+        db = QFontDatabase()
 
-# # Intenta cargar las fuentes al importar el módulo, y captura las excepciones si es necesario.
-# try:
-#     fonts = load_fonts()
-# except Exception as e:
-#     print(e)
-#     fonts = {}
+        # Initialize fonts dict if not already initialized
+        if FontManager.fonts is None:
+            FontManager.fonts = {}
 
-# Usar esta función para inicializar las fuentes en el lugar apropiado de la aplicación
-def get_fonts():
-    return load_fonts()
+        # Load and setup Proxima Nova fonts
+        nova_families = FontManager.load_fonts_from_dir('proxima-nova')
+        if "Proxima Nova" in nova_families:
+            FontManager.fonts['novaRegularFont'] = FontManager.create_font('Proxima Nova', 'Regular', 9, 50, 110)
+            FontManager.fonts['novaMediumFont'] = FontManager.create_font('Proxima Nova', 'Medium', 10, 700, 110)
+            FontManager.fonts['novaBoldFont'] = FontManager.create_font('Proxima Nova', 'Bold', 11, 700, 110)
+            print("Proxima Nova fonts initialized successfully.")
+        else:
+            raise Exception("Proxima Nova font is not available")
+
+        # Load and setup Roboto fonts
+        roboto_families = FontManager.load_fonts_from_dir('roboto')
+        # print(roboto_families)
+        # styles = db.styles("Roboto")
+        # print(styles)
+        if "Roboto" in roboto_families:
+            FontManager.fonts['robotoRegularFont'] = FontManager.create_font('Roboto', 'Regular', 8)
+            FontManager.fonts['robotoMediumFont'] = FontManager.create_font('Roboto Medium', 'Regular', 10)
+            FontManager.fonts['robotoBoldFont'] = FontManager.create_font('Roboto', 'Bold', 11)
+            print("Roboto fonts initialized successfully.")
+        else:
+            raise Exception("Roboto font is not available")
+
+    @staticmethod
+    def create_font(family, style, size, weight=None, letter_spacing=100):
+        font = QFontDatabase().font(family, style, size)
+        if weight:
+            font.setWeight(weight)  # Ajustar el peso de la fuente
+        font.setLetterSpacing(QFont.PercentageSpacing, letter_spacing)  # Ajustar el espaciado entre letras
+        return font
+
+    @staticmethod
+    def get_fonts():
+        if FontManager.fonts is None:
+            FontManager.initialize_fonts()
+        return FontManager.fonts
