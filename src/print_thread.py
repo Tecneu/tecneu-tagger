@@ -55,7 +55,7 @@ class PrintThread(QThread):
             except Exception as e:
                 self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
                 break
-            self.update_signal.emit(f"Etiquetas restantes: {self.copies - i - 1}")
+            self.update_signal.emit(f"{self.copies - i - 1}")  # Etiquetas restantes
             # Mapeo inverso para el delay
             with self.condition:
                 inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)  # Mapeo de 50->0.7 y 1->12

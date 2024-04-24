@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
     QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect
 from PyQt5.QtCore import QTimer, QSettings, Qt, pyqtSignal, QSize
@@ -22,6 +24,8 @@ class MainWindow(QWidget):
     """
     Clase principal de la ventana que gestiona la interfaz de usuario y las interacciones.
     """
+
+    BASE_ASSETS_PATH = Path(__file__).resolve().parent.parent.parent / "assets"
 
     def __init__(self):
         super().__init__()
@@ -80,13 +84,13 @@ class MainWindow(QWidget):
         fonts = FontManager.get_fonts()
         robotoBoldFont = None
         robotoRegularFont = None
-        digitalNormalFont = None
+        digitalBoldFont = None
         if fonts and 'robotoBoldFont' in fonts:
             robotoBoldFont = fonts['robotoBoldFont']
         if fonts and 'robotoRegularFont' in fonts:
             robotoRegularFont = fonts['robotoRegularFont']
-        if fonts and 'digitalNormalFont' in fonts:
-            digitalNormalFont = fonts['digitalNormalFont']
+        if fonts and 'digitalBoldFont' in fonts:
+            digitalBoldFont = fonts['digitalBoldFont']
 
         self.setWindowTitle("Tecneu - Tagger")
         self.setGeometry(800, 100, 800, 400)  # x, y, width, height
@@ -193,7 +197,8 @@ class MainWindow(QWidget):
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
-        turtle_pixmap = QPixmap("../../assets/icons/turtle-du.svg").scaled(60, 60, Qt.KeepAspectRatio)
+        turtle_pixmap = (QPixmap(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'turtle-du.svg'))
+                         .scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.turtle_icon_label.setPixmap(turtle_pixmap)
         self.delay_slider_layout.addWidget(self.turtle_icon_label)
 
@@ -201,7 +206,8 @@ class MainWindow(QWidget):
 
         # Icono de conejo para el lado rápido
         self.rabbit_icon_label = QLabel()
-        rabbit_pixmap = QPixmap("../../assets/icons/rabbit-running-du.svg").scaled(60, 60, Qt.KeepAspectRatio)
+        rabbit_pixmap = (QPixmap(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'rabbit-running-du.svg'))
+                         .scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
 
@@ -249,22 +255,55 @@ class MainWindow(QWidget):
 
         control_layout.addLayout(self.delay_slider_layout)
 
+        # Layout horizontal que contendrá dos contenedores verticales
+        buttons_and_counter_layout = QHBoxLayout()
+
+        # Contenedor y layout para los botones
+        buttons_layout = QVBoxLayout()
+        buttons_layout.setAlignment(Qt.AlignTop)
         self.start_button = QPushButton("Iniciar Impresión")
         self.start_button.clicked.connect(self.start_printing)
         if robotoBoldFont: self.start_button.setFont(robotoBoldFont)
-        control_layout.addWidget(self.start_button)
+        buttons_layout.addWidget(self.start_button)
 
         self.pause_button = QPushButton("Pausar")
         self.pause_button.clicked.connect(self.toggle_pause)
         if robotoBoldFont: self.pause_button.setFont(robotoBoldFont)
-        control_layout.addWidget(self.pause_button)
+        buttons_layout.addWidget(self.pause_button)
         self.pause_button.setEnabled(False)  # Inicialmente, el botón de pausa está deshabilitado
 
-        self.status_label = QLabel("Etiquetas restantes: 0")
-        if robotoBoldFont: self.status_label.setFont(digitalNormalFont)
+        # Contenedor y layout para el contador de etiquetas
+        counter_frame = QFrame()
+        counter_frame.setStyleSheet("background-color: #444; border: 1px solid black;")
+        counter_layout = QVBoxLayout(counter_frame)
+        counter_layout.setAlignment(Qt.AlignCenter)
+
+        # Label para el título del contador
+        self.title_label = QLabel("Etiquetas restantes:")
+        self.title_label.setStyleSheet("color: white;")
+        counter_layout.addWidget(self.title_label)
+
+        # Label para el número del contador
+        self.count_label = QLabel("0")
+        if robotoBoldFont: self.count_label.setFont(digitalBoldFont)
+        self.count_label.setStyleSheet("color: yellow; font-size: 65px;")
+        self.count_label.setAlignment(Qt.AlignRight)
+        counter_layout.addWidget(self.count_label)
+
+        # Añadir los dos contenedores verticales al layout horizontal
+        buttons_and_counter_layout.addLayout(buttons_layout)
+        buttons_and_counter_layout.addWidget(counter_frame)
+        control_layout.addLayout(buttons_and_counter_layout)
+
+        self.status_label = QLabel("")
+        # if robotoBoldFont: self.status_label.setFont(digitalNormalFont)
         control_layout.addWidget(self.status_label)
 
-        main_layout.addLayout(control_layout)  # Agrega control_layout a main_layout
+        # # Añadir los contenedores al layout principal
+        # main_layout.addLayout(control_layout)
+        # main_layout.addWidget(counter_frame)
+
+        # main_layout.addLayout(control_layout)  # Agrega control_layout a main_layout
 
         # Layout para QTextEdit y el botón de borrar
         zpl_layout = QVBoxLayout()
@@ -275,10 +314,12 @@ class MainWindow(QWidget):
 
         # Creación del menú desplegable para las impresoras
         self.printer_selector = QComboBox()
+        self.printer_selector.currentIndexChanged.connect(self.update_printer_icon)
         model = QStandardItemModel()
 
         # Crea el ítem "Seleccione una impresora" y hazlo no seleccionable
-        defaultItem = QStandardItem(QIcon("../../assets/icons/printer.svg"), "Seleccione una impresora")
+        defaultItem = QStandardItem(QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'printer.svg')),
+                                    "Seleccione una impresora")
         defaultItem.setEnabled(False)  # Hace que el ítem sea no seleccionable
         model.appendRow(defaultItem)
 
@@ -299,7 +340,7 @@ class MainWindow(QWidget):
         # Botón para borrar el contenido de QTextEdit
         self.clear_zpl_button = QPushButton("Borrar ZPL")
         # Establecer el ícono en el botón
-        self.clear_zpl_button.setIcon(QIcon("../../assets/icons/delete-left.svg"))
+        self.clear_zpl_button.setIcon(QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'delete-left.svg')))
         # // padding: 0px 20px 0px 0px;
         # // margin: 15px
         self.clear_zpl_button.setStyleSheet("""
@@ -319,9 +360,19 @@ class MainWindow(QWidget):
 
         # Agregar los layouts al layout principal
         main_layout.addLayout(control_layout)
+        # main_layout.addLayout(buttons_and_counter_layout)
         main_layout.addLayout(zpl_layout)  # Añadir el layout de ZPL al layout principal
 
         self.setLayout(main_layout)
+
+    def update_printer_icon(self, index):
+        # Eliminar el ícono de todos los ítems
+        for i in range(self.printer_selector.count()):
+            self.printer_selector.setItemIcon(i, QIcon())
+
+        # Establecer el ícono solo en el ítem seleccionado
+        if index != 0:  # Asumiendo que el índice 0 es "Seleccione una impresora"
+            self.printer_selector.setItemIcon(index, QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'printer.svg')))
 
     def increment(self):
         current_value = self.copies_entry.text()
@@ -503,6 +554,7 @@ class MainWindow(QWidget):
         return False
 
     def start_printing(self):
+        self.status_label.setText("")
         copies_text = self.copies_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
         delay = self.delay_slider.value()
@@ -557,15 +609,17 @@ class MainWindow(QWidget):
         # Cambia el estado de pausa
         if self.print_thread and self.print_thread.isRunning():
             if self.is_paused:
+                self.status_label.setText("")
                 self.pause_button.setText("Pausar")
                 self.is_paused = False
             else:
+                self.status_label.setText("Impresión pausada.")
                 self.pause_button.setText("Reanudar")
                 self.is_paused = True
             self.print_thread.toggle_pause()
 
     def update_status(self, message):
-        self.status_label.setText(message)
+        self.count_label.setText(message)
 
     def printing_finished(self):
         # Una vez finalizado el proceso de impresión, vuelve a habilitar el botón
