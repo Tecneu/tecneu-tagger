@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/TecneuTagger.iml" filepath="$PROJECT_DIR$/TecneuTagger.iml" />
+      <module fileurl="file://$PROJECT_DIR$/TecneuTaggerV2/TecneuTagger.iml" filepath="$PROJECT_DIR$/TecneuTaggerV2/TecneuTagger.iml" />
     </modules>
   </component>
 </project>

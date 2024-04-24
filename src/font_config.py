@@ -1,38 +1,32 @@
-# src/font_config.py
+# font_config.py
 import os
 from PyQt5.QtGui import QFont, QFontDatabase
+from pathlib import Path
 
-# Obtiene la ruta al directorio actual del script
-current_dir = os.path.dirname(__file__)
+# Ruta base para las fuentes, se asume que este archivo está en el mismo directorio que la carpeta 'assets'
+BASE_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 
-# Carga las fuentes y devuelve las instancias de QFont
+
+def load_font(family_name, style, size):
+    # Cargar y retornar un QFont individual
+    path = BASE_FONT_PATH / family_name / f"{style}.otf"
+    font_id = QFontDatabase.addApplicationFont(str(path))
+    if font_id == -1:
+        raise IOError(f"Failed to load font at: {path}")
+    family = QFontDatabase.applicationFontFamilies(font_id)[0]
+    return QFont(family, size)
+
+
 def load_fonts():
-    fonts = {}
-
-    nova_medium_path = os.path.join(current_dir, "..", "assets", "fonts", "proxima-nova", "ProximaNovaWide-Regular.otf")
-    nova_bold_path = os.path.join(current_dir, "..", "assets", "fonts", "proxima-nova", "ProximaNovaWide-Bold.otf")
-
-    print(nova_medium_path)
-    print(nova_bold_path)
-
-    # nova_medium_id = QFontDatabase.addApplicationFont(nova_medium_path)
-
-    novaMediumId = QFontDatabase.addApplicationFont("../assets/fonts/proxima-nova/ProximaNovaWide-Regular.otf")  # Ajusta la ruta a tu archivo de fuente
-    # nova_bold_id = QFontDatabase.addApplicationFont(nova_bold_path)
-
-    medium_family = QFontDatabase.applicationFontFamilies(novaMediumId)
-    # bold_family = QFontDatabase.applicationFontFamilies(nova_bold_id)
-
-    if medium_family:
-        # novaMediumFont = QFont(medium_family[0], 9, 600)  # Establece el tamaño de la fuente a 10 puntos
-        fonts['medium'] = QFont(medium_family[0], 9, 600)
-
-    # if bold_family:
-    #     fonts['bold'] = QFont(bold_family[0], 10)
-
+    # Cargar todas las fuentes necesarias y retornarlas en un diccionario
+    fonts = {
+        'ProximaNova-Regular': load_font('proxima-nova', 'Medium', 9),
+        'ProximaNova-Bold': load_font('proxima-nova', 'Bold', 10)
+    }
     return fonts
 
 
+# Exportar fuentes como atributos individuales para facilitar la importación
 fonts = load_fonts()
-novaMediumFont = fonts.get('medium')
-novaBoldFont = fonts.get('bold')
+novaMediumFont = fonts['ProximaNova-Regular']
+novaBoldFont = fonts['ProximaNova-Bold']

@@ -9,7 +9,7 @@ import re
 from .custom_widgets import CustomTextEdit
 from src.print_thread import PrintThread
 from src.utils import list_printers_to_json
-from src.font_config import novaBoldFont
+# from ..main import novaBoldFont
 
 __all__ = ['MainWindow']
 
@@ -229,12 +229,12 @@ class MainWindow(QWidget):
 
         self.start_button = QPushButton("Iniciar Impresión")
         self.start_button.clicked.connect(self.start_printing)
-        self.start_button.setFont(novaBoldFont)
+        # self.start_button.setFont(novaBoldFont)
         control_layout.addWidget(self.start_button)
 
         self.pause_button = QPushButton("Pausar")
         self.pause_button.clicked.connect(self.toggle_pause)
-        self.pause_button.setFont(novaBoldFont)
+        # self.pause_button.setFont(novaBoldFont)
         control_layout.addWidget(self.pause_button)
         self.pause_button.setEnabled(False)  # Inicialmente, el botón de pausa está deshabilitado
 
