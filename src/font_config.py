@@ -38,9 +38,6 @@ class FontManager:
 
         # Load and setup Roboto fonts
         roboto_families = FontManager.load_fonts_from_dir('roboto')
-        # print(roboto_families)
-        # styles = db.styles("Roboto")
-        # print(styles)
         if "Roboto" in roboto_families:
             FontManager.fonts['robotoRegularFont'] = FontManager.create_font('Roboto', 'Regular', 8)
             FontManager.fonts['robotoMediumFont'] = FontManager.create_font('Roboto Medium', 'Regular', 10)
@@ -48,6 +45,18 @@ class FontManager:
             print("Roboto fonts initialized successfully.")
         else:
             raise Exception("Roboto font is not available")
+
+        # Load and setup Roboto fonts
+        ds_digital_families = FontManager.load_fonts_from_dir('ds-digital')
+        # print(ds_digital_families)
+        # styles = db.styles("DS-Digital")
+        # print(styles)
+        if "DS-Digital" in ds_digital_families:
+            FontManager.fonts['digitalNormalFont'] = FontManager.create_font('DS-Digital', 'Normal', 15)
+            # FontManager.fonts['digitalBoldFont'] = FontManager.create_font('DS-Digital', 'Bold', 11)
+            print("DS-Digital fonts initialized successfully.")
+        else:
+            raise Exception("DS-Digital font is not available")
 
     @staticmethod
     def create_font(family, style, size, weight=None, letter_spacing=100):

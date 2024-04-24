@@ -80,10 +80,13 @@ class MainWindow(QWidget):
         fonts = FontManager.get_fonts()
         robotoBoldFont = None
         robotoRegularFont = None
+        digitalNormalFont = None
         if fonts and 'robotoBoldFont' in fonts:
             robotoBoldFont = fonts['robotoBoldFont']
         if fonts and 'robotoRegularFont' in fonts:
             robotoRegularFont = fonts['robotoRegularFont']
+        if fonts and 'digitalNormalFont' in fonts:
+            digitalNormalFont = fonts['digitalNormalFont']
 
         self.setWindowTitle("Tecneu - Tagger")
         self.setGeometry(800, 100, 800, 400)  # x, y, width, height
@@ -258,6 +261,7 @@ class MainWindow(QWidget):
         self.pause_button.setEnabled(False)  # Inicialmente, el botón de pausa está deshabilitado
 
         self.status_label = QLabel("Etiquetas restantes: 0")
+        if robotoBoldFont: self.status_label.setFont(digitalNormalFont)
         control_layout.addWidget(self.status_label)
 
         main_layout.addLayout(control_layout)  # Agrega control_layout a main_layout
