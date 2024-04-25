@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect
+    QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect, QListView
 from PyQt5.QtCore import QTimer, QSettings, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QIntValidator, QColor, QPixmap, QFont, QStandardItemModel, QStandardItem
 import json
@@ -314,6 +314,14 @@ class MainWindow(QWidget):
 
         # Creación del menú desplegable para las impresoras
         self.printer_selector = QComboBox()
+        self.printer_selector.setView(QListView())  # Asegúrate de importar QListView
+        self.printer_selector.setMinimumHeight(30)
+        self.printer_selector.setStyleSheet("""
+        QListView::item{
+            padding: 5px 10px;
+        }
+        """)
+
         self.printer_selector.currentIndexChanged.connect(self.update_printer_icon)
         model = QStandardItemModel()
 
@@ -372,7 +380,8 @@ class MainWindow(QWidget):
 
         # Establecer el ícono solo en el ítem seleccionado
         if index != 0:  # Asumiendo que el índice 0 es "Seleccione una impresora"
-            self.printer_selector.setItemIcon(index, QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'printer.svg')))
+            (self.printer_selector
+             .setItemIcon(index, QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'printer.svg'))))
 
     def increment(self):
         current_value = self.copies_entry.text()

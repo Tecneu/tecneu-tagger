@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QThread, pyqtSignal
 import re
+import math
 import time
 import threading
 from zebra import Zebra
@@ -58,13 +59,24 @@ class PrintThread(QThread):
             self.update_signal.emit(f"{self.copies - i - 1}")  # Etiquetas restantes
             # Mapeo inverso para el delay
             with self.condition:
-                inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)  # Mapeo de 50->0.7 y 1->12
-                self.condition.wait(inverse_delay)
+                # inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)  # Mapeo de 50->0.7 y 1->12
+                # Ajusta 'base' para cambiar la curva exponencial
+                base = 1.05  # Un número mayor que 1
+                min_delay = 1  # El menor delay posible para evitar math.log(0)
+                logaritmic_delay = math.log(self.delay + 1 - min_delay, base)
+                inverse_logaritmic_delay = self.calculate_inverse_delay(logaritmic_delay, 0.5, 80)
+                print('inverse_logaritmic_delay:', inverse_logaritmic_delay)
+                self.condition.wait(inverse_logaritmic_delay)
 
                 if self.delay_updated:
                     # Si el delay fue actualizado, espera con el nuevo delay y resetea el flag
-                    inverse_delay = 12 - (self.delay - 1) * (11.3 / 49)
-                    self.condition.wait(inverse_delay)
+                    # Ajusta 'base' para cambiar la curva exponencial
+                    base = 1.05  # Un número mayor que 1
+                    min_delay = 1  # El menor delay posible para evitar math.log(0)
+                    logaritmic_delay = math.log(self.delay + 1 - min_delay, base)
+                    inverse_logaritmic_delay = self.calculate_inverse_delay(logaritmic_delay, 0.5, 80)
+                    # print('inverse_logaritmic_delay:', inverse_logaritmic_delay)
+                    self.condition.wait(inverse_logaritmic_delay)
                     self.delay_updated = False
 
             # if i < self.copies - 1:
@@ -72,6 +84,14 @@ class PrintThread(QThread):
 
         if not self.manually_stopped:  # Emitir la señal solo si no se detuvo manualmente
             self.finished_signal.emit()
+
+    def calculate_inverse_delay(self, slider_value, min_slider, max_slider):
+        max_delay = 12
+        min_delay = 0.7
+
+        # Aplicamos la fórmula de mapeo inverso
+        delay = max_delay + (slider_value - min_slider) * (min_delay - max_delay) / (max_slider - min_slider)
+        return delay
 
     def set_delay(self, delay):
         """
