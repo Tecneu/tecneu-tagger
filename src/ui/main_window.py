@@ -13,8 +13,6 @@ from .custom_widgets import CustomTextEdit
 from print_thread import PrintThread
 from utils import list_printers_to_json
 
-# from ..main import novaBoldFont
-
 __all__ = ['MainWindow']
 
 json_printers = json.loads(list_printers_to_json());
@@ -36,23 +34,23 @@ class MainWindow(QWidget):
         self.slider_label_timer = QTimer(self)
         self.slider_label_timer.setInterval(2000)  # 2000 ms = 2 s
         self.slider_label_timer.setSingleShot(True)
-        # self.delay_update_timer = QTimer(self)  # Timer para actualizar el delay
-        # self.delay_update_timer.setInterval(500)  # Intervalo antes de actualizar el delay
-        # self.delay_update_timer.setSingleShot(True)
         self.updating_copies = False  # Flag para controlar la recursión entre métodos
         self.updating_zpl = False  # Flag para controlar la recursión entre métodos
         self.init_ui()
         self.loadSettings()
+        self.connect_buttons()
 
         self.slider_label_timer.timeout.connect(self.slider_label_frame.hide)
         self.slider_label_timer.timeout.connect(self.slider_label.hide)
         self.slider_label_timer.timeout.connect(self.saveSliderValue)
-        # self.delay_update_timer.timeout.connect(self.apply_new_delay)
-        # self.delay_slider.valueChanged.connect(self.schedule_delay_update)
 
-    # def schedule_delay_update(self):
-    #     # Reinicia el temporizador cada vez que el valor del slider cambia
-    #     self.delay_update_timer.start()
+        self.delay_update_timer = QTimer(self)
+        self.delay_update_timer.setInterval(700)  # 700 ms de retardo
+        self.delay_update_timer.setSingleShot(True)
+        self.delay_update_timer.timeout.connect(self.apply_delay_change_arrows)
+
+        self.status_timer = QTimer(self)
+        self.status_timer.timeout.connect(self.clear_status_message)
 
     def apply_new_delay(self):
         # Aplica el nuevo delay al hilo de impresión
@@ -251,12 +249,6 @@ class MainWindow(QWidget):
         # Asegúrate de que el frame esté oculto inicialmente
         self.slider_label_frame.hide()
 
-        # Ajustar dinámicamente el tamaño del frame al cambiar el texto
-        # self.slider_label.textChanged.connect(self.slider_label_frame.adjustSize())
-
-        # En MainWindow.init_ui(), asegúrate de conectar el valor del slider con update_slider_label
-        # self.delay_slider.valueChanged.connect(self.update_slider_label)
-
         control_layout.addLayout(self.delay_slider_layout)
 
         # Layout horizontal que contendrá dos contenedores verticales
@@ -304,12 +296,6 @@ class MainWindow(QWidget):
         self.status_label.setStyleSheet("color: #F27405; font-size: 17px;")
         control_layout.addWidget(self.status_label)
 
-        # # Añadir los contenedores al layout principal
-        # main_layout.addLayout(control_layout)
-        # main_layout.addWidget(counter_frame)
-
-        # main_layout.addLayout(control_layout)  # Agrega control_layout a main_layout
-
         # Layout para QTextEdit y el botón de borrar
         zpl_layout = QVBoxLayout()
         self.zpl_textedit = CustomTextEdit()
@@ -356,8 +342,6 @@ class MainWindow(QWidget):
         self.clear_zpl_button = QPushButton("Borrar ZPL")
         # Establecer el ícono en el botón
         self.clear_zpl_button.setIcon(QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'delete-left.svg')))
-        # // padding: 0px 20px 0px 0px;
-        # // margin: 15px
         self.clear_zpl_button.setStyleSheet("""
             QPushButton {
                 text-align: left;
@@ -393,12 +377,66 @@ class MainWindow(QWidget):
 
         self.setLayout(main_layout)
 
+    def connect_buttons(self):
+        # Conecta todos los botones a la función que manejará el clic
+        for button in self.findChildren(QPushButton):
+            button.clicked.connect(self.handle_button_click)
+
+        for slider in self.findChildren(QSlider):
+            slider.sliderReleased.connect(self.handle_widget_interaction)
+
+        for combo in self.findChildren(QComboBox):
+            combo.currentIndexChanged.connect(self.handle_widget_interaction)
+
+    #
+    def handle_button_click(self):
+        """
+        Maneja el evento de clic en cualquier botón y limpia el foco.
+        """
+        self.clear_focus()
+
+    def handle_widget_interaction(self):
+        """
+        Maneja la interacción con sliders y comboboxes, y limpia el foco.
+        """
+        self.clear_focus()
+
+    def set_status_message(self, message, duration=None, countdown=False, color="#F27405"):
+        """
+        Establece un mensaje de estado con una duración opcional y cuenta regresiva.
+
+        Args:
+        message (str): El mensaje a mostrar.
+        duration (int, optional): Duración en segundos para mostrar el mensaje. None para indefinido.
+        countdown (bool, optional): Si es True, muestra la cuenta regresiva junto al mensaje.
+        color (str, optional): Código de color para el mensaje.
+        """
+        self.status_label.setText(message)
+        self.status_label.setStyleSheet(f"color: {color}; font-size: 17px;")
+        if duration:
+            self.countdown = duration
+            if countdown:
+                self.status_label.setText(f"{message} ({self.countdown} s)")
+            self.status_timer.start(1000)  # Cada segundo
+        else:
+            self.status_timer.stop()
+
+    def clear_status_message(self):
+        """
+        Limpia el mensaje de estado y detiene el temporizador si no es indefinido.
+        """
+        if self.countdown > 1:
+            self.countdown -= 1
+            self.status_label.setText(f"{self.status_label.text().split('(')[0]}({self.countdown} s)")
+        else:
+            self.status_label.setText("")
+            self.status_timer.stop()
+
     def paste_from_clipboard(self):
         clipboard = QApplication.clipboard()
         # Elimina espacios en blanco y comillas dobles al principio y al final
         text = clipboard.text().strip().strip('"')
         self.zpl_textedit.setPlainText(text)  # Pegar como texto plano
-        self.clear_focus()
 
     def update_printer_icon(self, index):
         # Eliminar el ícono de todos los ítems
@@ -416,7 +454,6 @@ class MainWindow(QWidget):
             current_value = int(current_value)
         elif current_value != '':
             return
-        self.clear_focus()
 
         value = int(current_value or 0)
         if value < 999:
@@ -428,14 +465,25 @@ class MainWindow(QWidget):
             current_value = int(current_value)
         elif current_value != '':
             return
-        self.clear_focus()
 
         value = int(current_value or 0)
         if value > 0:
             self.copies_entry.setText(str(value - 1))
 
     def apply_delay_change(self):
+        """
+        Aplica el nuevo delay al hilo de impresión.
+        """
         if self.print_thread is not None:
+            self.print_thread.apply_delay_change()
+
+    def apply_delay_change_arrows(self):
+        """
+        Aplica el nuevo delay al hilo de impresión desde las flechas.
+        """
+        new_delay = self.delay_slider.value()
+        if self.print_thread is not None:
+            self.print_thread.set_delay(new_delay)
             self.print_thread.apply_delay_change()
 
     # Modificar update_slider_label para ajustar la posición del frame
@@ -550,10 +598,16 @@ class MainWindow(QWidget):
 
         if key == Qt.Key_Left:
             # Disminuir el valor del slider
-            self.delay_slider.setValue(self.delay_slider.value() - 1)
+            current_value = self.delay_slider.value()
+            if current_value > self.delay_slider.minimum():
+                self.delay_slider.setValue(current_value - 1)
+                self.delay_update_timer.start()  # Reinicia el temporizador
         elif key == Qt.Key_Right:
             # Aumentar el valor del slider
-            self.delay_slider.setValue(self.delay_slider.value() + 1)
+            current_value = self.delay_slider.value()
+            if current_value < self.delay_slider.maximum():
+                self.delay_slider.setValue(current_value + 1)
+                self.delay_update_timer.start()  # Reinicia el temporizador
         elif key == Qt.Key_Space:
             # Pausar/reanudar la impresión
             self.clear_focus()
@@ -561,12 +615,10 @@ class MainWindow(QWidget):
             # Si se reanuda, comienza inmediatamente con la siguiente impresión sin esperar el delay
             if not self.is_paused and self.print_thread is not None:
                 self.print_thread.pause = False
-        elif key == Qt.Key_F5:
-            # Iniciar/detener la impresión
+        elif key == Qt.Key_Delete:
+            # Detener la impresión
             self.clear_focus()
-            if self.print_thread is None or not self.print_thread.isRunning():
-                self.start_printing()
-            else:
+            if self.print_thread and self.print_thread.isRunning():
                 self.stop_printing()
         elif key == Qt.Key_Escape:
             self.clear_focus()
@@ -579,10 +631,11 @@ class MainWindow(QWidget):
             super().keyPressEvent(event)  # Llama al método base para manejar otras teclas
 
     def stop_printing(self):
-        if self.print_thread:
+        if self.print_thread and self.print_thread.isRunning():
             self.print_thread.stop_printing()
             self.print_thread = None
-            self.status_label.setText("Impresión detenida.")
+            self.set_status_message("Impresión detenida... ", duration=14, countdown=True)
+            self.count_label.setText("0")
             # Reestablecer el UI para permitir una nueva impresión
             self.start_button.setEnabled(True)
             self.pause_button.setEnabled(False)
@@ -599,7 +652,7 @@ class MainWindow(QWidget):
         return False
 
     def start_printing(self):
-        self.status_label.setText("")
+        self.set_status_message("")
         copies_text = self.copies_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
         delay = self.delay_slider.value()
@@ -607,6 +660,13 @@ class MainWindow(QWidget):
         # Asegurarse de que los campos no estén vacíos
         if not copies_text or not zpl_text:
             QMessageBox.warning(self, "Error de validación", "Los campos no pueden estar vacíos.")
+            return
+
+        copies = int(copies_text)
+
+        # Asegurarse de que la cantidad de copias sea al menos una
+        if copies <= 0:
+            QMessageBox.warning(self, "Error de validación", "La cantidad de copias no puede ser cero.")
             return
 
         # Verificar que se haya seleccionado una impresora
@@ -625,8 +685,6 @@ class MainWindow(QWidget):
         if not self.copies_entry.hasAcceptableInput():
             QMessageBox.warning(self, "Error de validación", "Por favor, ingresa valores válidos.")
             return
-
-        copies = int(copies_text)
 
         if self.print_thread is not None and self.print_thread.isRunning():
             QMessageBox.warning(self, "Advertencia", "Ya hay un proceso de impresión en curso.")
@@ -654,11 +712,11 @@ class MainWindow(QWidget):
         # Cambia el estado de pausa
         if self.print_thread and self.print_thread.isRunning():
             if self.is_paused:
-                self.status_label.setText("")
+                self.set_status_message("")
                 self.pause_button.setText("Pausar")
                 self.is_paused = False
             else:
-                self.status_label.setText("Impresión pausada.")
+                self.set_status_message("Impresión pausada")
                 self.pause_button.setText("Reanudar")
                 self.is_paused = True
             self.print_thread.toggle_pause()
@@ -673,9 +731,8 @@ class MainWindow(QWidget):
         self.pause_button.setEnabled(False)
         self.pause_button.setText("Pausar")  # Restablece el texto del botón de pausa
         self.is_paused = False  # Restablece el estado de pausa
-        self.status_label.setText("Impresión completada.")
+        self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setText('0')
-        self.clear_focus()
 
     def closeEvent(self, event):
         # Guardar el nombre de la impresora seleccionada
