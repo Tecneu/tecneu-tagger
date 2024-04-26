@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0f04f815-b2e3-498a-ba28-0c92d8b9f5e8" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/assets/icons/paste.svg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/print_thread.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/print_thread.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
@@ -80,11 +81,11 @@
       <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets\icons" />
       <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger" />
       <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\src" />
       <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger" />
       <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\src" />
-      <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\assets\fonts\proxima-nova" />
     </key>
   </component>
   <component name="RunManager">
@@ -186,6 +187,6 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/TecneuTagger$test.coverage" NAME="test Coverage Results" MODIFIED="1711568034714" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/TecneuTagger$main.coverage" NAME="main Coverage Results" MODIFIED="1713990002870" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/TecneuTagger$main.coverage" NAME="main Coverage Results" MODIFIED="1714073221948" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>

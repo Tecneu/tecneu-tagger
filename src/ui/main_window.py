@@ -534,6 +534,8 @@ class MainWindow(QWidget):
                 self.start_printing()
             else:
                 self.stop_printing()
+        elif key == Qt.Key_Escape:
+            self.clear_focus()
         elif key in (Qt.Key_Up, Qt.Key_Down):
             if event.key() == Qt.Key_Up:
                 self.increment()

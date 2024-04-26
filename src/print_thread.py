@@ -51,8 +51,7 @@ class PrintThread(QThread):
 
             print(f"Numero de copia: {i}")
             try:
-                # z.output(single_copy_zpl)
-                print("")
+                z.output(single_copy_zpl)
             except Exception as e:
                 self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
                 break
