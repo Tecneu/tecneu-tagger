@@ -46,15 +46,23 @@ class FontManager:
         else:
             raise Exception("Roboto font is not available")
 
-        # Load and setup Roboto fonts
+        # Load and setup DS-DIGITAL fonts
         ds_digital_families = FontManager.load_fonts_from_dir('ds-digital')
-        # print(ds_digital_families)
-        # styles = db.styles("DS-Digital")
-        # print(styles)
         if "DS-Digital" in ds_digital_families:
             FontManager.fonts['digitalNormalFont'] = FontManager.create_font('DS-Digital', 'Normal', 15)
             FontManager.fonts['digitalBoldFont'] = FontManager.create_font('DS-Digital', 'Bold', 11)
             print("DS-Digital fonts initialized successfully.")
+        else:
+            raise Exception("DS-Digital font is not available")
+
+        # Load and setup Mysteric fonts
+        mysteric_families = FontManager.load_fonts_from_dir('mysteric')
+        # print(mysteric_families)
+        # styles = db.styles("Mysteric")
+        # print(styles)
+        if "Mysteric" in mysteric_families:
+            FontManager.fonts['mystericFont'] = FontManager.create_font('Mysteric', 'Regular', 15)
+            print("Mysteric font initialized successfully.")
         else:
             raise Exception("DS-Digital font is not available")
 

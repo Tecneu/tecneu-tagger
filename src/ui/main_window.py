@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect, QListView
+    QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect, QListView, QApplication
 from PyQt5.QtCore import QTimer, QSettings, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QIntValidator, QColor, QPixmap, QFont, QStandardItemModel, QStandardItem
 import json
@@ -85,12 +85,15 @@ class MainWindow(QWidget):
         robotoBoldFont = None
         robotoRegularFont = None
         digitalBoldFont = None
+        mystericFont = None
         if fonts and 'robotoBoldFont' in fonts:
             robotoBoldFont = fonts['robotoBoldFont']
         if fonts and 'robotoRegularFont' in fonts:
             robotoRegularFont = fonts['robotoRegularFont']
         if fonts and 'digitalBoldFont' in fonts:
             digitalBoldFont = fonts['digitalBoldFont']
+        if fonts and 'mystericFont' in fonts:
+            mystericFont = fonts['mystericFont']
 
         self.setWindowTitle("Tecneu - Tagger")
         self.setGeometry(800, 100, 800, 400)  # x, y, width, height
@@ -145,6 +148,7 @@ class MainWindow(QWidget):
         self.delay_slider.setTickInterval(1)
         self.delay_slider.setTickPosition(QSlider.TicksBelow)
         self.delay_slider.valueChanged.connect(self.update_slider_label)
+        self.delay_slider.sliderReleased.connect(self.apply_delay_change)
 
         self.delay_slider.setStyleSheet("""
             QSlider::groove:horizontal {
@@ -296,7 +300,8 @@ class MainWindow(QWidget):
         control_layout.addLayout(buttons_and_counter_layout)
 
         self.status_label = QLabel("")
-        # if robotoBoldFont: self.status_label.setFont(digitalNormalFont)
+        if mystericFont: self.status_label.setFont(mystericFont)
+        self.status_label.setStyleSheet("color: #F27405; font-size: 17px;")
         control_layout.addWidget(self.status_label)
 
         # # Añadir los contenedores al layout principal
@@ -312,6 +317,8 @@ class MainWindow(QWidget):
         self.zpl_textedit.textChanged.connect(self.validate_and_update_copies_from_zpl)
         zpl_layout.addWidget(self.zpl_textedit)
 
+        # Configurar botones para el ZPL input/impresora
+        zpl_buttons_layout = QHBoxLayout()
         # Creación del menú desplegable para las impresoras
         self.printer_selector = QComboBox()
         self.printer_selector.setView(QListView())  # Asegúrate de importar QListView
@@ -343,7 +350,7 @@ class MainWindow(QWidget):
         self.printer_selector.model().item(0).setEnabled(False)
 
         self.printer_selector.currentTextChanged.connect(self.on_printer_selected)  # Conectar la señal al método
-        zpl_layout.addWidget(self.printer_selector)
+        zpl_buttons_layout.addWidget(self.printer_selector)
 
         # Botón para borrar el contenido de QTextEdit
         self.clear_zpl_button = QPushButton("Borrar ZPL")
@@ -364,14 +371,34 @@ class MainWindow(QWidget):
         # Establecer el tamaño del ícono (opcional)
         self.clear_zpl_button.setIconSize(QSize(20, 20))
         self.clear_zpl_button.clicked.connect(self.zpl_textedit.clear)
-        zpl_layout.addWidget(self.clear_zpl_button)
+        zpl_buttons_layout.addWidget(self.clear_zpl_button)
+
+        # Botón para pegar desde el portapapeles
+        self.paste_zpl_button = QPushButton()
+        self.paste_zpl_button.setIcon(QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'paste.svg')))
+        self.paste_zpl_button.setStyleSheet("""
+            QPushButton {
+                padding: 5px;
+                icon-size: 20px;
+            }
+        """)
+        self.paste_zpl_button.clicked.connect(self.paste_from_clipboard)
+        zpl_buttons_layout.addWidget(self.paste_zpl_button)
+
+        zpl_layout.addLayout(zpl_buttons_layout)
 
         # Agregar los layouts al layout principal
         main_layout.addLayout(control_layout)
-        # main_layout.addLayout(buttons_and_counter_layout)
         main_layout.addLayout(zpl_layout)  # Añadir el layout de ZPL al layout principal
 
         self.setLayout(main_layout)
+
+    def paste_from_clipboard(self):
+        clipboard = QApplication.clipboard()
+        # Elimina espacios en blanco y comillas dobles al principio y al final
+        text = clipboard.text().strip().strip('"')
+        self.zpl_textedit.setPlainText(text)  # Pegar como texto plano
+        self.clear_focus()
 
     def update_printer_icon(self, index):
         # Eliminar el ícono de todos los ítems
@@ -389,6 +416,7 @@ class MainWindow(QWidget):
             current_value = int(current_value)
         elif current_value != '':
             return
+        self.clear_focus()
 
         value = int(current_value or 0)
         if value < 999:
@@ -400,10 +428,15 @@ class MainWindow(QWidget):
             current_value = int(current_value)
         elif current_value != '':
             return
+        self.clear_focus()
 
         value = int(current_value or 0)
         if value > 0:
             self.copies_entry.setText(str(value - 1))
+
+    def apply_delay_change(self):
+        if self.print_thread is not None:
+            self.print_thread.apply_delay_change()
 
     # Modificar update_slider_label para ajustar la posición del frame
     def update_slider_label(self, value):
@@ -492,6 +525,7 @@ class MainWindow(QWidget):
         if name != "Seleccione una impresora":
             self.selected_printer_name = name
             self.settings.setValue('printer_name', self.printer_selector.currentText())
+            self.clear_focus()
 
     def clear_focus(self):
         """
@@ -641,6 +675,7 @@ class MainWindow(QWidget):
         self.is_paused = False  # Restablece el estado de pausa
         self.status_label.setText("Impresión completada.")
         self.copies_entry.setText('0')
+        self.clear_focus()
 
     def closeEvent(self, event):
         # Guardar el nombre de la impresora seleccionada

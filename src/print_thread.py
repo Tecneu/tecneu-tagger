@@ -74,7 +74,7 @@ class PrintThread(QThread):
                     min_delay = 1  # El menor delay posible para evitar math.log(0)
                     logaritmic_delay = math.log(self.delay + 1 - min_delay, base)
                     inverse_logaritmic_delay = self.calculate_inverse_delay(logaritmic_delay, 0.5, 80)
-                    # print('inverse_logaritmic_delay:', inverse_logaritmic_delay)
+                    print('inverse_logaritmic_delay:', inverse_logaritmic_delay)
                     self.condition.wait(inverse_logaritmic_delay)
                     self.delay_updated = False
 
@@ -100,7 +100,15 @@ class PrintThread(QThread):
         with self.condition:
             self.delay = delay
             self.delay_updated = True
-            self.condition.notify()  # Notificar al hilo de la actualización
+            # self.condition.notify()  # Notificar al hilo de la actualización
+
+    def apply_delay_change(self):
+        """
+        Notifica al hilo de la impresión que el delay ha sido actualizado y
+        que puede proceder con la impresión si es necesario.
+        """
+        with self.condition:
+            self.condition.notify()
 
     def toggle_pause(self):
         """
