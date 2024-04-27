@@ -436,6 +436,10 @@ class MainWindow(QWidget):
         clipboard = QApplication.clipboard()
         # Elimina espacios en blanco y comillas dobles al principio y al final
         text = clipboard.text().strip().strip('"')
+        if text == '':
+            self.set_status_message("No hay texto para pegar", duration=5, countdown=True, color='#BD2A2E')
+            return
+
         self.zpl_textedit.setPlainText(text)  # Pegar como texto plano
 
     def update_printer_icon(self, index):
@@ -516,6 +520,8 @@ class MainWindow(QWidget):
 
         if zpl_text == '' or not is_valid_zpl:
             self.copies_entry.setText('')
+        if zpl_text != '' and not is_valid_zpl:
+            self.set_status_message("ZPL ingresado no es valido", duration=5, countdown=True, color='#BD2A2E')
 
         pq_index = zpl_text.find('^PQ')
         if is_valid_zpl and pq_index != -1:
