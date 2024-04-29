@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.6 (TecneuTagger)" />
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="Python 3.12 (venv)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="Python 3.10 (TecneuTagger)" project-jdk-type="Python SDK" />
 </project>

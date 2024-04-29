@@ -1,6 +1,6 @@
 import os
 from PyQt5.QtGui import QFont, QFontDatabase
-from PyQt5.QtCore import Qt, QDir
+from PyQt5.QtCore import QDir
 from pathlib import Path
 
 

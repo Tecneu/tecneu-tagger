@@ -8,10 +8,9 @@ import json
 import re
 from font_config import FontManager
 
-# ui/main_window.py
 from .custom_widgets import CustomTextEdit
-from print_thread import PrintThread
-from utils import list_printers_to_json
+from src.print_thread import PrintThread
+from src.utils import list_printers_to_json
 
 __all__ = ['MainWindow']
 
@@ -257,16 +256,16 @@ class MainWindow(QWidget):
         # Contenedor y layout para los botones
         buttons_layout = QVBoxLayout()
         buttons_layout.setAlignment(Qt.AlignTop)
-        self.start_button = QPushButton("Iniciar Impresión")
-        self.start_button.clicked.connect(self.start_printing)
-        if robotoBoldFont: self.start_button.setFont(robotoBoldFont)
-        buttons_layout.addWidget(self.start_button)
+        self.control_button = QPushButton("Iniciar Impresión")
+        self.control_button.clicked.connect(self.control_printing)
+        if robotoBoldFont: self.control_button.setFont(robotoBoldFont)
+        buttons_layout.addWidget(self.control_button)
 
-        self.pause_button = QPushButton("Pausar")
-        self.pause_button.clicked.connect(self.toggle_pause)
-        if robotoBoldFont: self.pause_button.setFont(robotoBoldFont)
-        buttons_layout.addWidget(self.pause_button)
-        self.pause_button.setEnabled(False)  # Inicialmente, el botón de pausa está deshabilitado
+        self.stop_button = QPushButton("Detener")
+        self.stop_button.clicked.connect(self.stop_printing)
+        if robotoBoldFont: self.stop_button.setFont(robotoBoldFont)
+        buttons_layout.addWidget(self.stop_button)
+        self.stop_button.setEnabled(False)  # Inicialmente, el botón de pausa está deshabilitado
 
         # Contenedor y layout para el contador de etiquetas
         counter_frame = QFrame()
@@ -617,15 +616,14 @@ class MainWindow(QWidget):
         elif key == Qt.Key_Space:
             # Pausar/reanudar la impresión
             self.clear_focus()
-            self.toggle_pause()
+            self.control_printing()
             # Si se reanuda, comienza inmediatamente con la siguiente impresión sin esperar el delay
             if not self.is_paused and self.print_thread is not None:
                 self.print_thread.pause = False
         elif key == Qt.Key_Delete:
             # Detener la impresión
             self.clear_focus()
-            if self.print_thread and self.print_thread.isRunning():
-                self.stop_printing()
+            self.stop_printing()
         elif key == Qt.Key_Escape:
             self.clear_focus()
         elif key in (Qt.Key_Up, Qt.Key_Down):
@@ -636,18 +634,6 @@ class MainWindow(QWidget):
         else:
             super().keyPressEvent(event)  # Llama al método base para manejar otras teclas
 
-    def stop_printing(self):
-        if self.print_thread and self.print_thread.isRunning():
-            self.print_thread.stop_printing()
-            self.print_thread = None
-            self.set_status_message("Impresión detenida... ", duration=14, countdown=True)
-            self.count_label.setText("0")
-            # Reestablecer el UI para permitir una nueva impresión
-            self.start_button.setEnabled(True)
-            self.pause_button.setEnabled(False)
-            self.pause_button.setText("Pausar")
-            QMessageBox.information(self, "Impresión detenida", "La impresión ha sido detenida.")
-
     def is_valid_zpl(self, zpl_text):
         """
         Verifica si el texto proporcionado es un ZPL válido.
@@ -657,8 +643,45 @@ class MainWindow(QWidget):
             return True
         return False
 
+    def control_printing(self):
+        if self.print_thread is None or not self.print_thread.isRunning():
+            self.start_printing()
+        elif self.print_thread and self.print_thread.isRunning():
+            if self.is_paused:
+                self.resume_printing()
+            else:
+                self.pause_printing()
+
+    def pause_printing(self):
+        if self.print_thread:
+            self.is_paused = True
+            self.control_button.setText("Reanudar")
+            self.set_status_message("Impresión pausada")
+            self.print_thread.toggle_pause()
+
+    def resume_printing(self):
+        if self.print_thread:
+            self.is_paused = False
+            self.control_button.setText("Pausar")
+            self.set_status_message("")
+            self.print_thread.toggle_pause()
+
+    def stop_printing(self):
+        if self.print_thread and self.print_thread.isRunning():
+            self.print_thread.stop_printing()
+            self.print_thread = None
+            self.set_status_message("Impresión detenida... ", duration=10, countdown=True)
+            # Reestablecer el UI para permitir una nueva impresión
+            self.count_label.setText("0")
+            self.stop_button.setEnabled(False)
+            self.control_button.setText("Iniciar Impresión")
+            QMessageBox.information(self, "Impresión detenida", "La impresión ha sido detenida.")
+
     def start_printing(self):
         self.set_status_message("")
+        self.control_button.setText("Pausar")
+        self.is_paused = False
+        self.stop_button.setEnabled(True)
         copies_text = self.copies_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
         delay = self.delay_slider.value()
@@ -707,25 +730,9 @@ class MainWindow(QWidget):
             self.print_thread.copies = copies
             self.print_thread.zpl = zpl_text
 
-        self.start_button.setEnabled(False)
-        self.pause_button.setEnabled(True)
-
         # Inicia el hilo de impresión si no está en ejecución
         if not self.print_thread.isRunning():
             self.print_thread.start()
-
-    def toggle_pause(self):
-        # Cambia el estado de pausa
-        if self.print_thread and self.print_thread.isRunning():
-            if self.is_paused:
-                self.set_status_message("")
-                self.pause_button.setText("Pausar")
-                self.is_paused = False
-            else:
-                self.set_status_message("Impresión pausada")
-                self.pause_button.setText("Reanudar")
-                self.is_paused = True
-            self.print_thread.toggle_pause()
 
     def update_status(self, message):
         self.count_label.setText(message)
@@ -733,9 +740,8 @@ class MainWindow(QWidget):
     def printing_finished(self):
         # Una vez finalizado el proceso de impresión, vuelve a habilitar el botón
         # de iniciar impresión y deshabilita el botón de pausa.
-        self.start_button.setEnabled(True)
-        self.pause_button.setEnabled(False)
-        self.pause_button.setText("Pausar")  # Restablece el texto del botón de pausa
+        self.control_button.setText("Iniciar Impresión")  # Restablece el texto del botón de pausa
+        self.stop_button.setEnabled(False)
         self.is_paused = False  # Restablece el estado de pausa
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setText('0')
