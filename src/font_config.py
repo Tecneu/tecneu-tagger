@@ -1,4 +1,5 @@
 import os
+import sys
 from PyQt5.QtGui import QFont, QFontDatabase
 from PyQt5.QtCore import QDir
 from pathlib import Path
@@ -6,7 +7,23 @@ from pathlib import Path
 
 class FontManager:
     # Ruta base para las fuentes, se asume que este archivo está en el mismo directorio que la carpeta 'assets'
-    BASE_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+    # Cambia esto para reflejar la estructura dentro del ejecutable
+    # BASE_FONT_PATH = Path(sys._MEIPASS) / "assets" / "fonts"
+    # Verificar si se está ejecutando como un paquete de PyInstaller
+    if getattr(sys, 'frozen', False):
+        # Si es así, usa la ruta de _MEIPASS
+        BASE_FONT_PATH = Path(sys._MEIPASS) / "assets" / "fonts"
+    else:
+        # De lo contrario, usa la ruta relativa desde el archivo de script
+        BASE_FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+
+    # # Imprimir el BASE_FONT_PATH en la consola o escribirlo en un archivo
+    # print("Base Font Path:", BASE_FONT_PATH)
+    #
+    # # Opcionalmente, escribir en un archivo de registro
+    # with open("debug_log.txt", "a") as f:
+    #     f.write(f"Base Font Path: {BASE_FONT_PATH}\n")
+
     fonts = None
 
     @staticmethod

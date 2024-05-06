@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
     QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect, QListView, QApplication
@@ -9,8 +10,8 @@ import re
 from font_config import FontManager
 
 from .custom_widgets import CustomTextEdit
-from src.print_thread import PrintThread
-from src.utils import list_printers_to_json
+from print_thread import PrintThread
+from utils import list_printers_to_json
 
 __all__ = ['MainWindow']
 
@@ -22,7 +23,12 @@ class MainWindow(QWidget):
     Clase principal de la ventana que gestiona la interfaz de usuario y las interacciones.
     """
 
-    BASE_ASSETS_PATH = Path(__file__).resolve().parent.parent.parent / "assets"
+    if getattr(sys, 'frozen', False):
+        # Si es así, usa la ruta de _MEIPASS
+        BASE_ASSETS_PATH = Path(sys._MEIPASS) / "assets"
+    else:
+        # De lo contrario, usa la ruta relativa desde el archivo de script
+        BASE_ASSETS_PATH = Path(__file__).resolve().parent.parent.parent / "assets"
 
     def __init__(self):
         super().__init__()
