@@ -684,10 +684,6 @@ class MainWindow(QWidget):
             QMessageBox.information(self, "Impresión detenida", "La impresión ha sido detenida.")
 
     def start_printing(self):
-        self.set_status_message("")
-        self.control_button.setText("Pausar")
-        self.is_paused = False
-        self.stop_button.setEnabled(True)
         copies_text = self.copies_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
         delay = self.delay_slider.value()
@@ -731,6 +727,11 @@ class MainWindow(QWidget):
             self.print_thread.update_signal.connect(self.update_status)
             self.print_thread.finished_signal.connect(self.printing_finished)
             self.print_thread.error_signal.connect(self.show_error_message)
+
+            self.set_status_message("")
+            self.control_button.setText("Pausar")
+            self.is_paused = False
+            self.stop_button.setEnabled(True)
         else:
             # Si el hilo ya existe y está ejecutándose, actualiza las propiedades y continúa
             self.print_thread.copies = copies

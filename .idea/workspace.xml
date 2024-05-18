@@ -5,12 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0f04f815-b2e3-498a-ba28-0c92d8b9f5e8" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/main.spec" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main.spec" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/font_config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/font_config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/print_thread.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/print_thread.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -55,7 +51,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_ADD_EXTERNAL_FILES": "true",
-    "Python.main.executor": "Run",
+    "Python.main.executor": "Debug",
     "Python.test.executor": "Run",
     "RunOnceActivity.OpenDjangoStructureViewOnStart": "true",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
@@ -73,7 +69,7 @@
     "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "preferences.rainbow.brackets.indent",
+    "settings.editor.selected.configurable": "preferences.lookFeel",
     "show.migrate.to.gradle.popup": "false",
     "vue.rearranger.settings.migration": "true"
   }
@@ -162,7 +158,11 @@
       <workItem from="1714176130528" duration="3325000" />
       <workItem from="1714424557735" duration="127000" />
       <workItem from="1714424691164" duration="11392000" />
-      <workItem from="1715016763126" duration="7031000" />
+      <workItem from="1715016763126" duration="9703000" />
+      <workItem from="1715094045761" duration="1943000" />
+      <workItem from="1715194133586" duration="3677000" />
+      <workItem from="1715280053902" duration="48000" />
+      <workItem from="1715876135051" duration="12836000" />
     </task>
     <servers />
   </component>
@@ -185,6 +185,18 @@
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/print_thread.py</url>
+          <line>64</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/print_thread.py</url>
+          <line>67</line>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+      </breakpoints>
       <default-breakpoints>
         <breakpoint type="python-exception">
           <properties notifyOnTerminate="true" exception="BaseException">
@@ -196,6 +208,6 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/TecneuTagger$test.coverage" NAME="test Coverage Results" MODIFIED="1711568034714" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/TecneuTagger$main.coverage" NAME="main Coverage Results" MODIFIED="1715020014960" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/TecneuTagger$main.coverage" NAME="main Coverage Results" MODIFIED="1715991140428" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
