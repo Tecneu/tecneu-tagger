@@ -57,6 +57,12 @@ class MainWindow(QWidget):
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.clear_status_message)
 
+        self.space_press_timer = QTimer(self)
+        self.space_press_timer.setInterval(200)  # 400 ms para la detección de doble clic
+        self.space_press_timer.setSingleShot(True)
+        self.space_press_timer.timeout.connect(self.handle_single_space_press)
+        self.space_press_count = 0
+
     def apply_new_delay(self):
         # Aplica el nuevo delay al hilo de impresión
         new_delay = self.delay_slider.value()
@@ -622,10 +628,13 @@ class MainWindow(QWidget):
         elif key == Qt.Key_Space:
             # Pausar/reanudar la impresión
             self.clear_focus()
-            self.control_printing()
-            # Si se reanuda, comienza inmediatamente con la siguiente impresión sin esperar el delay
-            if not self.is_paused and self.print_thread is not None:
-                self.print_thread.pause = False
+            # self.control_printing()
+            self.space_press_count += 1
+            if self.space_press_count == 1:
+                self.space_press_timer.start()
+            elif self.space_press_count == 2:
+                self.space_press_timer.stop()
+                self.handle_double_space_press()
         elif key == Qt.Key_Delete:
             # Detener la impresión
             self.clear_focus()
@@ -639,6 +648,37 @@ class MainWindow(QWidget):
                 self.decrement()
         else:
             super().keyPressEvent(event)  # Llama al método base para manejar otras teclas
+
+    def handle_single_space_press(self):
+        """Handle single space key press for pausing/resuming."""
+        self.space_press_count = 0
+        self.control_printing()
+        # if self.print_thread is not None:
+        #     if self.print_thread.isRunning() and not self.print_thread.pause:
+        #         self.pause_printing()
+        #     elif self.print_thread.pause:
+        #         self.resume_printing()
+        #     else:
+        #         self.start_printing()
+
+    def handle_double_space_press(self):
+        """Handle double space key press for immediate print and pause."""
+        print("handle_double_space_press called")
+        self.space_press_count = 0
+        if self.print_thread is not None and self.print_thread.isRunning():
+            print("print_and_pause called")
+            self.print_thread.print_and_pause()
+            self.is_paused = True
+            self.print_thread.pause = True
+            self.control_button.setText("Reanudar")
+            self.set_status_message("Impresión pausada")
+
+    def pause_printing(self):
+        return
+        # if self.print_thread:
+        #     self.is_paused = True
+        #     self.control_button.setText("Reanudar")
+        #     self.set_status_message("Impresión pausada")
 
     def is_valid_zpl(self, zpl_text):
         """
@@ -666,7 +706,8 @@ class MainWindow(QWidget):
             self.print_thread.toggle_pause()
 
     def resume_printing(self):
-        if self.print_thread:
+        print("Resuming printing")
+        if self.print_thread and self.is_paused:
             self.is_paused = False
             self.control_button.setText("Pausar")
             self.set_status_message("")
@@ -727,15 +768,16 @@ class MainWindow(QWidget):
             self.print_thread.update_signal.connect(self.update_status)
             self.print_thread.finished_signal.connect(self.printing_finished)
             self.print_thread.error_signal.connect(self.show_error_message)
+            self.print_thread.request_pause_signal.connect(self.pause_printing)
+        else:
+            # Si el hilo ya existe y está ejecutándose, actualiza las propiedades y continúa
+            self.print_thread.copies = copies
+            self.print_thread.zpl = zpl_text
 
             self.set_status_message("")
             self.control_button.setText("Pausar")
             self.is_paused = False
             self.stop_button.setEnabled(True)
-        else:
-            # Si el hilo ya existe y está ejecutándose, actualiza las propiedades y continúa
-            self.print_thread.copies = copies
-            self.print_thread.zpl = zpl_text
 
         # Inicia el hilo de impresión si no está en ejecución
         if not self.print_thread.isRunning():
