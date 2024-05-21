@@ -28,7 +28,7 @@ class PrintThread(QThread):
         self.stopped = False
         self.manually_stopped = False
         self.condition = threading.Condition()
-        self.lock = threading.Lock() # Lock para proteger el acceso a self.copies
+        self.lock = threading.Lock()  # Lock para proteger el acceso a self.copies
         self.z = Zebra(self.printer_name)  # Inicializa aquí
         try:
             self.z.setqueue(self.printer_name)
@@ -39,9 +39,9 @@ class PrintThread(QThread):
         """
         Método principal del hilo que maneja el proceso de impresión.
         """
-        for i in range(self.copies):
-            if self.stopped:
-                self.manually_stopped = True  # Indicar que la impresión fue detenida manualmente
+        while not self.stopped:
+            if self.copies <= 0:
+                self.finished_signal.emit()
                 break
 
             # Espera aquí mientras estamos pausados
@@ -49,38 +49,54 @@ class PrintThread(QThread):
                 with self.condition:
                     self.condition.wait()
 
-            # Modificar el ZPL para imprimir una copia a la vez
-            single_copy_zpl = re.sub(r'\^PQ[0-9]+', '^PQ1', self.zpl, flags=re.IGNORECASE)
+            # Imprime una etiqueta a la vez
+            self.print_label()
+            print(f"self.copies: {self.copies}.")
+            with self.lock:
+                self.copies -= 1  # Asegurar la operación atómica sobre self.copies
 
-            print(f"Numero de copia: {i}")
-            try:
-                self.z.output(single_copy_zpl)
-            except Exception as e:
-                self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
-                break
-            self.update_signal.emit(f"{self.copies - i - 1}")  # Etiquetas restantes
+            self.update_signal.emit(f"{self.copies}")  # Etiquetas restantes
 
-            if i < self.copies - 1:  # No esperar después de la última etiqueta
+            if self.copies > 0:  # No esperar después de la última etiqueta
                 self.wait_with_delay()
 
         if not self.manually_stopped:  # Emitir la señal solo si no se detuvo manualmente
             self.finished_signal.emit()
 
+    def print_label(self):
+        """
+        Modifica el ZPL para imprimir una copia a la vez y maneja la impresión.
+        """
+        single_copy_zpl = re.sub(r'\^PQ[0-9]+', '^PQ1', self.zpl, flags=re.IGNORECASE)
+        try:
+            self.z.output(single_copy_zpl)
+            print(f"Impresión realizada")
+        except Exception as e:
+            self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
+
     def print_and_pause(self):
         """
         Imprime inmediatamente una etiqueta y luego pausa la impresión.
         """
-        # if not self.pause:  # Verifica si no está pausado para evitar conflictos
-        # Modificar el ZPL para imprimir una copia a la vez
-        single_copy_zpl = re.sub(r'\^PQ[0-9]+', '^PQ1', self.zpl, flags=re.IGNORECASE)
-        try:
-            self.z.output(single_copy_zpl)
-            print(f"Impreso: 1")
-            self.update_signal.emit(str(self.copies - 1))  # Actualizar las etiquetas restantes
-            # self.copies -= 1
-            self.request_pause_signal.emit()  # Emitir señal para solicitar pausa
-        except Exception as e:
-            self.error_signal.emit(f"Error al imprimir: {e}")
+        # if not self.pause:
+        if (self.copies > 0):
+            self.print_label()
+            with self.lock:
+                self.copies -= 1  # Asegurar la operación atómica sobre self.copies
+            self.update_signal.emit(str(self.copies))
+            print(f"self.copies: {self.copies}.")
+            if (self.copies != 0):
+                self.pause = True
+                self.request_pause_signal.emit()  # Emite una señal para que la UI maneje la pausa
+            else:
+                print("finished_signal.emit")
+                self.finished_signal.emit()
+
+    def set_copies_and_zpl(self, copies, zpl):
+        with self.lock:
+            self.copies = copies
+            self.zpl = zpl
+            self.pause = False  # Reinicia la pausa para asegurar que no esté pausada al cambiar de trabajo
 
     def wait_with_delay(self):
         """

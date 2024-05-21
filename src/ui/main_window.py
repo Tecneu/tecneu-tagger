@@ -771,13 +771,12 @@ class MainWindow(QWidget):
             self.print_thread.request_pause_signal.connect(self.pause_printing)
         else:
             # Si el hilo ya existe y está ejecutándose, actualiza las propiedades y continúa
-            self.print_thread.copies = copies
-            self.print_thread.zpl = zpl_text
+            self.print_thread.set_copies_and_zpl(copies, zpl_text)
 
-            self.set_status_message("")
-            self.control_button.setText("Pausar")
-            self.is_paused = False
-            self.stop_button.setEnabled(True)
+        self.set_status_message("")
+        self.control_button.setText("Pausar")
+        self.is_paused = False
+        self.stop_button.setEnabled(True)
 
         # Inicia el hilo de impresión si no está en ejecución
         if not self.print_thread.isRunning():
@@ -789,6 +788,7 @@ class MainWindow(QWidget):
     def printing_finished(self):
         # Una vez finalizado el proceso de impresión, vuelve a habilitar el botón
         # de iniciar impresión y deshabilita el botón de pausa.
+        print("Impresión completada...")
         self.control_button.setText("Iniciar Impresión")  # Restablece el texto del botón de pausa
         self.stop_button.setEnabled(False)
         self.is_paused = False  # Restablece el estado de pausa
