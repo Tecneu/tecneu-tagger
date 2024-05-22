@@ -670,15 +670,15 @@ class MainWindow(QWidget):
             self.print_thread.print_and_pause()
             self.is_paused = True
             self.print_thread.pause = True
-            self.control_button.setText("Reanudar")
-            self.set_status_message("Impresión pausada")
+            # self.control_button.setText("Reanudar")
+            # self.set_status_message("Impresión pausada")
 
     def pause_printing(self):
+        if self.print_thread:
+            # self.is_paused = True
+            self.control_button.setText("Reanudar")
+            self.set_status_message("Impresión pausada")
         return
-        # if self.print_thread:
-        #     self.is_paused = True
-        #     self.control_button.setText("Reanudar")
-        #     self.set_status_message("Impresión pausada")
 
     def is_valid_zpl(self, zpl_text):
         """

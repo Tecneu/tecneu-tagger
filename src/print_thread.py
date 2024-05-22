@@ -40,22 +40,21 @@ class PrintThread(QThread):
         Método principal del hilo que maneja el proceso de impresión.
         """
         while not self.stopped:
-            if self.copies <= 0:
-                self.finished_signal.emit()
-                break
-
             # Espera aquí mientras estamos pausados
             while self.pause:
                 with self.condition:
                     self.condition.wait()
 
+            if self.copies <= 0 or self.stopped:
+                break  # Sal del ciclo si no hay más copias o se ha solicitado detener.
+
             # Imprime una etiqueta a la vez
             self.print_label()
-            print(f"self.copies: {self.copies}.")
+            # print(f"self.copies: {self.copies}.")
             with self.lock:
                 self.copies -= 1  # Asegurar la operación atómica sobre self.copies
 
-            self.update_signal.emit(f"{self.copies}")  # Etiquetas restantes
+            self.update_signal.emit(str(self.copies))  # Etiquetas restantes
 
             if self.copies > 0:  # No esperar después de la última etiqueta
                 self.wait_with_delay()
@@ -79,18 +78,21 @@ class PrintThread(QThread):
         Imprime inmediatamente una etiqueta y luego pausa la impresión.
         """
         # if not self.pause:
-        if (self.copies > 0):
+        if self.copies > 0:
             self.print_label()
             with self.lock:
                 self.copies -= 1  # Asegurar la operación atómica sobre self.copies
             self.update_signal.emit(str(self.copies))
-            print(f"self.copies: {self.copies}.")
-            if (self.copies != 0):
+            print(f"self.copies_single: {self.copies}.")
+            if (self.copies > 0):
                 self.pause = True
                 self.request_pause_signal.emit()  # Emite una señal para que la UI maneje la pausa
             else:
-                print("finished_signal.emit")
+                with self.condition:
+                    # self.stopped = True  # Detiene el hilo si no quedan más copias
+                    self.condition.notify_all()  # Asegúrate de despertar el hilo si está esperando.
                 self.finished_signal.emit()
+                print("Finalización emitida desde print_and_pause después de la última etiqueta.")
 
     def set_copies_and_zpl(self, copies, zpl):
         with self.lock:
