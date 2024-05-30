@@ -58,7 +58,7 @@ class MainWindow(QWidget):
         self.status_timer.timeout.connect(self.clear_status_message)
 
         self.space_press_timer = QTimer(self)
-        self.space_press_timer.setInterval(200)  # 400 ms para la detección de doble clic
+        self.space_press_timer.setInterval(240)  # 400 ms para la detección de doble clic
         self.space_press_timer.setSingleShot(True)
         self.space_press_timer.timeout.connect(self.handle_single_space_press)
         self.space_press_count = 0
@@ -627,7 +627,6 @@ class MainWindow(QWidget):
                 self.delay_update_timer.start()  # Reinicia el temporizador
         elif key == Qt.Key_Space:
             # Pausar/reanudar la impresión
-            self.clear_focus()
             # self.control_printing()
             self.space_press_count += 1
             if self.space_press_count == 1:
@@ -635,6 +634,7 @@ class MainWindow(QWidget):
             elif self.space_press_count == 2:
                 self.space_press_timer.stop()
                 self.handle_double_space_press()
+            self.clear_focus()
         elif key == Qt.Key_Delete:
             # Detener la impresión
             self.clear_focus()
@@ -653,19 +653,17 @@ class MainWindow(QWidget):
         """Handle single space key press for pausing/resuming."""
         self.space_press_count = 0
         self.control_printing()
-        # if self.print_thread is not None:
-        #     if self.print_thread.isRunning() and not self.print_thread.pause:
-        #         self.pause_printing()
-        #     elif self.print_thread.pause:
-        #         self.resume_printing()
-        #     else:
-        #         self.start_printing()
 
     def handle_double_space_press(self):
         """Handle double space key press for immediate print and pause."""
         print("handle_double_space_press called")
         self.space_press_count = 0
-        if self.print_thread is not None and self.print_thread.isRunning():
+        if self.print_thread is None or not self.print_thread.isRunning():
+            self.start_printing(True)  # Start printing with flag
+            self.print_thread.print_and_pause()
+            self.is_paused = True
+            self.print_thread.pause = True
+        else:
             print("print_and_pause called")
             self.print_thread.print_and_pause()
             self.is_paused = True
@@ -690,6 +688,8 @@ class MainWindow(QWidget):
         return False
 
     def control_printing(self):
+        # print("self.print_thread.isRunning():")
+        # print("TRUE" if self.print_thread is not None and self.print_thread.isRunning() else "FALSE");
         if self.print_thread is None or not self.print_thread.isRunning():
             self.start_printing()
         elif self.print_thread and self.print_thread.isRunning():
@@ -724,7 +724,7 @@ class MainWindow(QWidget):
             self.control_button.setText("Iniciar Impresión")
             QMessageBox.information(self, "Impresión detenida", "La impresión ha sido detenida.")
 
-    def start_printing(self):
+    def start_printing(self, initiated_by_double_click=False):
         copies_text = self.copies_entry.text()
         zpl_text = self.zpl_textedit.toPlainText()
         delay = self.delay_slider.value()
@@ -773,6 +773,9 @@ class MainWindow(QWidget):
             # Si el hilo ya existe y está ejecutándose, actualiza las propiedades y continúa
             self.print_thread.set_copies_and_zpl(copies, zpl_text)
 
+        print('initiated_by_double_click: ', initiated_by_double_click)
+        self.print_thread.initiated_by_double_click = initiated_by_double_click # Set the flag directly here
+
         self.set_status_message("")
         self.control_button.setText("Pausar")
         self.is_paused = False
@@ -792,6 +795,7 @@ class MainWindow(QWidget):
         self.control_button.setText("Iniciar Impresión")  # Restablece el texto del botón de pausa
         self.stop_button.setEnabled(False)
         self.is_paused = False  # Restablece el estado de pausa
+        self.print_thread.stopped = False
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setText('0')
 

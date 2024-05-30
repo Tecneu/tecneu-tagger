@@ -24,33 +24,43 @@ class PrintThread(QThread):
         self.delay = delay
         self.zpl = zpl
         self.printer_name = printer_name
-        self.pause = False
-        self.stopped = False
-        self.manually_stopped = False
-        self.condition = threading.Condition()
         self.lock = threading.Lock()  # Lock para proteger el acceso a self.copies
         self.z = Zebra(self.printer_name)  # Inicializa aquí
+        self.reset_thread_state()  # Asegurar que el estado del hilo esté correcto cada vez que se inicie run()
         try:
             self.z.setqueue(self.printer_name)
         except Exception as e:
             self.error_signal.emit(f"Error al establecer la cola de la impresora{': ' if str(e) else ''}{e}.")
 
+    def reset_thread_state(self):
+        """
+        Restablece las variables del hilo a su estado inicial.
+        """
+        self.pause = False
+        self.stopped = False
+        self.manually_stopped = False
+        self.initiated_by_double_click = False
+        self.condition = threading.Condition()
+
     def run(self):
         """
         Método principal del hilo que maneja el proceso de impresión.
         """
+        first_iteration = True
         while not self.stopped:
             # Espera aquí mientras estamos pausados
-            while self.pause:
+            if self.pause or (first_iteration and self.initiated_by_double_click):
                 with self.condition:
-                    self.condition.wait()
+                    while (self.pause or (first_iteration and self.initiated_by_double_click)) and not self.stopped:
+                        first_iteration = False
+                        self.condition.wait()
 
             if self.copies <= 0 or self.stopped:
                 break  # Sal del ciclo si no hay más copias o se ha solicitado detener.
 
             # Imprime una etiqueta a la vez
             self.print_label()
-            # print(f"self.copies: {self.copies}.")
+            print(f"self.copies_mult: {self.copies}.")
             with self.lock:
                 self.copies -= 1  # Asegurar la operación atómica sobre self.copies
 
@@ -61,6 +71,8 @@ class PrintThread(QThread):
 
         if not self.manually_stopped:  # Emitir la señal solo si no se detuvo manualmente
             self.finished_signal.emit()
+
+        self.reset_thread_state()  # Asegurar que el estado del hilo esté correcto cada vez que se inicie run()
 
     def print_label(self):
         """
@@ -73,25 +85,34 @@ class PrintThread(QThread):
         except Exception as e:
             self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
 
+    def stop_printing(self):
+        """
+        Método para detener la impresión. Configura la bandera `stopped` y notifica todas las esperas.
+        """
+        with self.condition:
+            self.stopped = True
+            self.condition.notify_all()  # Asegúrate de despertar todos los hilos que están esperando
+
+        if self.isRunning():
+            self.wait()  # Espera a que el hilo termine
+
     def print_and_pause(self):
         """
         Imprime inmediatamente una etiqueta y luego pausa la impresión.
         """
-        # if not self.pause:
         if self.copies > 0:
             self.print_label()
             with self.lock:
                 self.copies -= 1  # Asegurar la operación atómica sobre self.copies
             self.update_signal.emit(str(self.copies))
             print(f"self.copies_single: {self.copies}.")
-            if (self.copies > 0):
+            if self.copies > 0:
                 self.pause = True
                 self.request_pause_signal.emit()  # Emite una señal para que la UI maneje la pausa
             else:
                 with self.condition:
-                    # self.stopped = True  # Detiene el hilo si no quedan más copias
+                    self.stopped = True  # Detiene el hilo si no quedan más copias
                     self.condition.notify_all()  # Asegúrate de despertar el hilo si está esperando.
-                self.finished_signal.emit()
                 print("Finalización emitida desde print_and_pause después de la última etiqueta.")
 
     def set_copies_and_zpl(self, copies, zpl):
