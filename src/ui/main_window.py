@@ -9,6 +9,7 @@ import json
 import re
 from font_config import FontManager
 
+from config import MAX_DELAY
 from .custom_widgets import CustomTextEdit
 from print_thread import PrintThread
 from utils import list_printers_to_json
@@ -152,8 +153,8 @@ class MainWindow(QWidget):
         self.delay_slider_layout = QHBoxLayout()
         self.delay_slider = QSlider(Qt.Horizontal)
         self.delay_slider.setMinimum(1)
-        self.delay_slider.setMaximum(50)
-        self.delay_slider.setValue(25)  # Valor predeterminado
+        self.delay_slider.setMaximum(MAX_DELAY)
+        self.delay_slider.setValue(round(MAX_DELAY / 2))  # Valor predeterminado
         self.delay_slider.setTickInterval(1)
         self.delay_slider.setTickPosition(QSlider.TicksBelow)
         self.delay_slider.valueChanged.connect(self.update_slider_label)
@@ -774,7 +775,7 @@ class MainWindow(QWidget):
             self.print_thread.set_copies_and_zpl(copies, zpl_text)
 
         print('initiated_by_double_click: ', initiated_by_double_click)
-        self.print_thread.initiated_by_double_click = initiated_by_double_click # Set the flag directly here
+        self.print_thread.initiated_by_double_click = initiated_by_double_click  # Set the flag directly here
 
         self.set_status_message("")
         self.control_button.setText("Pausar")

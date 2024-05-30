@@ -4,6 +4,7 @@ import math
 import time
 import threading
 from zebra import Zebra
+from config import MAX_DELAY
 
 # print_thread.py
 __all__ = ['PrintThread']
@@ -55,16 +56,15 @@ class PrintThread(QThread):
                         first_iteration = False
                         self.condition.wait()
 
+            # Imprime una etiqueta a la vez
+            self.print_label()
+
+            self.update_signal.emit(str(self.copies))  # Etiquetas restantes
+
             if self.copies <= 0 or self.stopped:
                 break  # Sal del ciclo si no hay más copias o se ha solicitado detener.
 
-            # Imprime una etiqueta a la vez
-            self.print_label()
-            print(f"self.copies_mult: {self.copies}.")
-            with self.lock:
-                self.copies -= 1  # Asegurar la operación atómica sobre self.copies
-
-            self.update_signal.emit(str(self.copies))  # Etiquetas restantes
+            # print(f"self.copies_mult: {self.copies}.")
 
             if self.copies > 0:  # No esperar después de la última etiqueta
                 self.wait_with_delay()
@@ -78,9 +78,21 @@ class PrintThread(QThread):
         """
         Modifica el ZPL para imprimir una copia a la vez y maneja la impresión.
         """
-        single_copy_zpl = re.sub(r'\^PQ[0-9]+', '^PQ1', self.zpl, flags=re.IGNORECASE)
+        if self.delay == MAX_DELAY:  # Supongamos que MAX_DELAY es el valor máximo del slider
+            # Modifica ZPL para imprimir todas las etiquetas restantes
+            all_copies_zpl = re.sub(r'\^PQ[0-9]+', f'^PQ{self.copies}', self.zpl, flags=re.IGNORECASE)
+            zpl_to_print = all_copies_zpl
+            with self.lock:
+                self.copies = 0  # Asegurar la operación atómica sobre self.copies
+        else:
+            # Modifica ZPL para imprimir una copia a la vez
+            single_copy_zpl = re.sub(r'\^PQ[0-9]+', '^PQ1', self.zpl, flags=re.IGNORECASE)
+            zpl_to_print = single_copy_zpl
+            with self.lock:
+                self.copies -= 1  # Asegurar la operación atómica sobre self.copies
+
         try:
-            self.z.output(single_copy_zpl)
+            self.z.output(zpl_to_print)
             print(f"Impresión realizada")
         except Exception as e:
             self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
