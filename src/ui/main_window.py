@@ -11,6 +11,7 @@ from font_config import FontManager
 
 from config import MAX_DELAY
 from .custom_widgets import CustomTextEdit
+from .zpl_preview import LabelViewer
 from print_thread import PrintThread
 from utils import list_printers_to_json
 
@@ -143,8 +144,20 @@ class MainWindow(QWidget):
         self.decButton.setFixedSize(25, 19)
         button_container.addWidget(self.decButton)
 
+        # Define un nuevo layout para la vista previa de etiquetas
+        self.labelViewer = LabelViewer()
+        preview_layout = QVBoxLayout()
+        preview_layout.addWidget(self.labelViewer)
+        preview_layout.setAlignment(Qt.AlignCenter)
+
+        # Añade el layout de vista previa a la derecha del increment button
+        # right_layout = QVBoxLayout()
+        # right_layout.addWidget(self.incButton)
+        # right_layout.addLayout(preview_layout)
+
         # Añadir el contenedor de botones al layout del frame
         entry_layout.addLayout(button_container)
+        entry_layout.addLayout(preview_layout)
 
         # Agregar el frame al layout principal
         control_layout.addWidget(entry_frame)
@@ -584,6 +597,13 @@ class MainWindow(QWidget):
             elif is_valid_zpl:
                 # Añadir la instrucción ^PQ con el número de copias al final si no existe
                 self.zpl_textedit.setPlainText(zpl_text + f"\n^PQ{new_copies},0,1,Y^XZ")
+
+        zpl_text = self.zpl_textedit.toPlainText().strip()
+        if self.is_valid_zpl(zpl_text):
+            self.labelViewer.preview_label(zpl_text)
+        else:
+            # Puede optar por mostrar un mensaje o limpiar la vista previa si el ZPL no es válido
+            self.labelViewer.clear_preview()
 
         self.updating_zpl = False
 
