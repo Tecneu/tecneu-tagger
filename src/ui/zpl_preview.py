@@ -6,10 +6,13 @@ import re
 import threading
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QStackedLayout
 from PyQt5.QtGui import QPixmap, QMovie
-from PyQt5.QtCore import Qt, QTimer, QEvent
+from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
 
 
 class LabelViewer(QWidget):
+    # Definir una señal que pueda enviar un booleano indicando el éxito de la carga y una cadena con el mensaje
+    imageLoaded = pyqtSignal(bool, str)
+
     if getattr(sys, 'frozen', False):
         # Si es así, usa la ruta de _MEIPASS
         BASE_ASSETS_PATH = Path(sys._MEIPASS) / "assets"
@@ -20,6 +23,8 @@ class LabelViewer(QWidget):
     def __init__(self):
         super().__init__()
         self.init_ui()
+        self.last_zpl = ""  # Almacena la última versión del ZPL relevante
+        self.last_load_successful = True  # Índica si la última carga fue exitosa
 
     def init_ui(self):
         self.setWindowTitle('Label Preview')
@@ -62,6 +67,12 @@ class LabelViewer(QWidget):
         self.timer.timeout.connect(self.hide_spinner)
 
     def preview_label(self, zpl_label):
+        current_zpl = self._strip_pq(zpl_label)  # Obtener ZPL sin información de cantidad
+        if current_zpl != self.last_zpl or not self.last_load_successful:
+            self.last_zpl = current_zpl
+            self._start_loading(zpl_label)
+
+    def _start_loading(self, zpl_label):
         # Mostrar el spinner y empezar el temporizador
         self.layout.setCurrentWidget(self.spinner)
         self.spinner.setVisible(True)
@@ -73,6 +84,10 @@ class LabelViewer(QWidget):
 
         # Ejecutar la carga de la imagen en un hilo separado para no bloquear la GUI
         threading.Thread(target=self.load_image, args=(zpl_label,), daemon=True).start()
+
+    def _strip_pq(self, zpl_code):
+        # Elimina la información de cantidad de copias (PQ) del ZPL para comparaciones
+        return re.sub(r'\^PQ\d+,\d+,\d+,\w', '', zpl_code)
 
     def load_and_display_image(self, zpl_label):
         # Calcular las dimensiones dentro del hilo para evitar condiciones de carrera
@@ -91,6 +106,13 @@ class LabelViewer(QWidget):
         dimensions = self.estimate_zpl_dimensions(zpl_label)
         label_size = f"{round(dimensions[0], 2)}x{round(dimensions[1], 2)}"
         image_data = get_image_from_zpl(zpl_label, label_size)
+        if image_data:
+            self.last_load_successful = True
+            self.imageLoaded.emit(True, "Imagen cargada correctamente.")
+        else:
+            # Si la carga falla, prepara para un nuevo intento
+            self.last_load_successful = False
+            self.imageLoaded.emit(False, "Error al cargar la imagen.")
 
         # Ejecutar la actualización de la UI en el hilo principal
         QApplication.instance().postEvent(self, ImageLoadedEvent(image_data))
@@ -157,6 +179,8 @@ class LabelViewer(QWidget):
 
 
 def get_image_from_zpl(zpl_label, label_size):
+    # print(label_size)
+    # print(zpl_label)
     print_density = '8dpmm'
     url = f"http://api.labelary.com/v1/printers/{print_density}/labels/{label_size}/0"
     headers = {

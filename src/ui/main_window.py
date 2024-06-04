@@ -10,7 +10,7 @@ import re
 from font_config import FontManager
 
 from config import MAX_DELAY
-from .custom_widgets import CustomTextEdit
+from .custom_widgets import CustomTextEdit, SpinBoxWidget
 from .zpl_preview import LabelViewer
 from print_thread import PrintThread
 from utils import list_printers_to_json
@@ -110,7 +110,7 @@ class MainWindow(QWidget):
         self.setGeometry(800, 100, 800, 400)  # x, y, width, height
 
         # Establecer el tamaño mínimo de la ventana
-        self.setMinimumSize(700, 300)
+        self.setMinimumSize(800, 400)
 
         main_layout = QHBoxLayout()  # Usar QHBoxLayout para dividir la ventana
         control_layout = QVBoxLayout()
@@ -120,40 +120,21 @@ class MainWindow(QWidget):
         entry_layout.setContentsMargins(0, 0, 0, 0)
         entry_layout.setSpacing(0)
 
-        self.copies_entry = QLineEdit(entry_frame)
-        self.copies_entry.setPlaceholderText("Número de copias")
-        self.copies_entry.setValidator(QIntValidator(0, 999))
-        self.copies_entry.setMinimumHeight(30)
-        self.copies_entry.setMaximumWidth(140)
-        self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
+        self.copies_entry = SpinBoxWidget(entry_frame)
+        # self.copies_entry.setPlaceholderText("Número de copias")
+        # self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
+        self.copies_entry.valueChanged.connect(self.update_zpl_from_copies)
         entry_layout.addWidget(self.copies_entry)
 
         # Contenedor para los botones
         button_container = QVBoxLayout()
         button_container.setSpacing(0)  # Eliminar espacio entre los botones
 
-        self.incButton = QPushButton('▲')
-        if robotoBoldFont: self.incButton.setFont(robotoBoldFont)
-        self.incButton.clicked.connect(self.increment)
-        self.incButton.setFixedSize(25, 19)
-        button_container.addWidget(self.incButton)
-
-        self.decButton = QPushButton('▼')
-        if robotoBoldFont: self.decButton.setFont(robotoBoldFont)
-        self.decButton.clicked.connect(self.decrement)
-        self.decButton.setFixedSize(25, 19)
-        button_container.addWidget(self.decButton)
-
         # Define un nuevo layout para la vista previa de etiquetas
         self.labelViewer = LabelViewer()
         preview_layout = QVBoxLayout()
         preview_layout.addWidget(self.labelViewer)
         preview_layout.setAlignment(Qt.AlignCenter)
-
-        # Añade el layout de vista previa a la derecha del increment button
-        # right_layout = QVBoxLayout()
-        # right_layout.addWidget(self.incButton)
-        # right_layout.addLayout(preview_layout)
 
         # Añadir el contenedor de botones al layout del frame
         entry_layout.addLayout(button_container)
@@ -251,6 +232,11 @@ class MainWindow(QWidget):
         self.slider_label_frame.layout().setContentsMargins(0, 0, 0, 0)
         self.slider_label_frame.layout().setAlignment(Qt.AlignCenter)
         self.slider_label_frame.setFixedSize(26, 24)
+        self.slider_label_frame.raise_()  # Asegura que el frame del slider esté siempre en primer plano
+
+        # Asegúrate de llamar a self.raise_slider_labels() después de cualquier operación que afecte la visibilidad
+        self.labelViewer.imageLoaded.connect(
+            self.raise_slider_labels)  # Suponiendo que imageLoaded es una señal emitida después de cargar la imagen
 
         # Slider label setup
         self.slider_label = QLabel(self.slider_label_frame)
@@ -402,6 +388,12 @@ class MainWindow(QWidget):
 
         self.setLayout(main_layout)
 
+    # Asegúrate de llamar a esta función después de operaciones que cambian la visibilidad o el orden de los widgets
+    def raise_slider_labels(self):
+        self.slider_label_frame.raise_()  # Vuelve a poner el frame del slider en primer plano
+        if self.slider_label.isVisible():
+            self.slider_label.raise_()  # También maneja la etiqueta del slider si es necesario
+
     def connect_buttons(self):
         # Conecta todos los botones a la función que manejará el clic
         for button in self.findChildren(QPushButton):
@@ -478,26 +470,10 @@ class MainWindow(QWidget):
              .setItemIcon(index, QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'printer.svg'))))
 
     def increment(self):
-        current_value = self.copies_entry.text()
-        if current_value.isdigit():
-            current_value = int(current_value)
-        elif current_value != '':
-            return
-
-        value = int(current_value or 0)
-        if value < 999:
-            self.copies_entry.setText(str(value + 1))
+        self.copies_entry.incrementValue()
 
     def decrement(self):
-        current_value = self.copies_entry.text()
-        if current_value.isdigit():
-            current_value = int(current_value)
-        elif current_value != '':
-            return
-
-        value = int(current_value or 0)
-        if value > 0:
-            self.copies_entry.setText(str(value - 1))
+        self.copies_entry.decrementValue()
 
     def apply_delay_change(self):
         """
@@ -544,21 +520,33 @@ class MainWindow(QWidget):
         is_valid_zpl = self.is_valid_zpl(zpl_text)
 
         if zpl_text == '' or not is_valid_zpl:
-            self.copies_entry.setText('')
+            self.copies_entry.setValue('')
         if zpl_text != '' and not is_valid_zpl:
             self.set_status_message("ZPL ingresado no es valido", duration=5, countdown=True, color='#BD2A2E')
 
         pq_index = zpl_text.find('^PQ')
-        if is_valid_zpl and pq_index != -1:
+        if is_valid_zpl:
             # Encuentra el número de copias en el ZPL
             start_index = pq_index + 3
-            end_index = zpl_text.find(',', start_index)
-            if end_index == -1:
-                end_index = len(zpl_text)
+            new_zpl_text = zpl_text
 
-            copies_str = zpl_text[start_index:end_index]
-            if copies_str.isdigit():
-                self.copies_entry.setText(copies_str)
+            if pq_index != -1:
+                end_index = zpl_text.find(',', start_index)
+                if end_index == -1:
+                    end_index = len(zpl_text)
+
+                copies_str = zpl_text[start_index:end_index]
+                if copies_str.isdigit():
+                    self.copies_entry.setValue(copies_str)
+
+                new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
+
+            # print("LABEL PREVIEW")
+            # print(new_zpl_text)
+            self.labelViewer.preview_label(new_zpl_text)
+        else:
+            # Puede optar por mostrar un mensaje o limpiar la vista previa si el ZPL no es válido
+            self.labelViewer.clear_preview()
 
         self.updating_copies = False
 
@@ -597,13 +585,6 @@ class MainWindow(QWidget):
             elif is_valid_zpl:
                 # Añadir la instrucción ^PQ con el número de copias al final si no existe
                 self.zpl_textedit.setPlainText(zpl_text + f"\n^PQ{new_copies},0,1,Y^XZ")
-
-        zpl_text = self.zpl_textedit.toPlainText().strip()
-        if self.is_valid_zpl(zpl_text):
-            self.labelViewer.preview_label(zpl_text)
-        else:
-            # Puede optar por mostrar un mensaje o limpiar la vista previa si el ZPL no es válido
-            self.labelViewer.clear_preview()
 
         self.updating_zpl = False
 
@@ -818,7 +799,7 @@ class MainWindow(QWidget):
         self.is_paused = False  # Restablece el estado de pausa
         self.print_thread.stopped = False
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
-        self.copies_entry.setText('0')
+        self.copies_entry.setValue('0')
 
     def closeEvent(self, event):
         # Guardar el nombre de la impresora seleccionada
