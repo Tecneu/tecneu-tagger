@@ -797,6 +797,10 @@ class MainWindow(QWidget):
         self.control_button.setText("Iniciar Impresión")  # Restablece el texto del botón de pausa
         self.stop_button.setEnabled(False)
         self.is_paused = False  # Restablece el estado de pausa
+        # Traceback (most recent call last):
+        # File "C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\src\ui\main_window.py", line 800, in printing_finished
+        # self.print_thread.stopped = False
+        # AttributeError: 'NoneType' object has no attribute 'stopped'
         self.print_thread.stopped = False
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setValue('0')
