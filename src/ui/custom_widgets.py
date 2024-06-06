@@ -92,8 +92,7 @@ class SpinBoxWidget(QWidget):
         self.setLayout(mainLayout)
 
     def on_text_changed(self, text):
-        if self.text() != text and text.isdigit():  # Verificar cambio para evitar bucle infinito
-            self.valueChanged.emit(int(text))
+        self.valueChanged.emit(text)
 
     def incrementValue(self):
         value = self.lineEdit.text()

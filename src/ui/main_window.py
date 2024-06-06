@@ -9,7 +9,7 @@ import json
 import re
 from font_config import FontManager
 
-from config import MAX_DELAY
+from config import MAX_DELAY, BASE_ASSETS_PATH
 from .custom_widgets import CustomTextEdit, SpinBoxWidget
 from .zpl_preview import LabelViewer
 from print_thread import PrintThread
@@ -24,13 +24,6 @@ class MainWindow(QWidget):
     """
     Clase principal de la ventana que gestiona la interfaz de usuario y las interacciones.
     """
-
-    if getattr(sys, 'frozen', False):
-        # Si es así, usa la ruta de _MEIPASS
-        BASE_ASSETS_PATH = Path(sys._MEIPASS) / "assets"
-    else:
-        # De lo contrario, usa la ruta relativa desde el archivo de script
-        BASE_ASSETS_PATH = Path(__file__).resolve().parent.parent.parent / "assets"
 
     def __init__(self):
         super().__init__()
@@ -205,7 +198,7 @@ class MainWindow(QWidget):
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
-        turtle_pixmap = (QPixmap(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'turtle-du.svg'))
+        turtle_pixmap = (QPixmap(os.fspath(BASE_ASSETS_PATH / 'icons' / 'turtle-du.svg'))
                          .scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.turtle_icon_label.setPixmap(turtle_pixmap)
         self.delay_slider_layout.addWidget(self.turtle_icon_label)
@@ -214,7 +207,7 @@ class MainWindow(QWidget):
 
         # Icono de conejo para el lado rápido
         self.rabbit_icon_label = QLabel()
-        rabbit_pixmap = (QPixmap(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'rabbit-running-du.svg'))
+        rabbit_pixmap = (QPixmap(os.fspath(BASE_ASSETS_PATH / 'icons' / 'rabbit-running-du.svg'))
                          .scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
@@ -330,7 +323,7 @@ class MainWindow(QWidget):
         model = QStandardItemModel()
 
         # Crea el ítem "Seleccione una impresora" y hazlo no seleccionable
-        defaultItem = QStandardItem(QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'printer.svg')),
+        defaultItem = QStandardItem(QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'printer.svg')),
                                     "Seleccione una impresora")
         defaultItem.setEnabled(False)  # Hace que el ítem sea no seleccionable
         model.appendRow(defaultItem)
@@ -352,7 +345,7 @@ class MainWindow(QWidget):
         # Botón para borrar el contenido de QTextEdit
         self.clear_zpl_button = QPushButton("Borrar ZPL")
         # Establecer el ícono en el botón
-        self.clear_zpl_button.setIcon(QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'delete-left.svg')))
+        self.clear_zpl_button.setIcon(QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'delete-left.svg')))
         self.clear_zpl_button.setStyleSheet("""
             QPushButton {
                 text-align: left;
@@ -370,7 +363,7 @@ class MainWindow(QWidget):
 
         # Botón para pegar desde el portapapeles
         self.paste_zpl_button = QPushButton()
-        self.paste_zpl_button.setIcon(QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'paste.svg')))
+        self.paste_zpl_button.setIcon(QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'paste.svg')))
         self.paste_zpl_button.setStyleSheet("""
             QPushButton {
                 padding: 5px;
@@ -467,7 +460,7 @@ class MainWindow(QWidget):
         # Establecer el ícono solo en el ítem seleccionado
         if index != 0:  # Asumiendo que el índice 0 es "Seleccione una impresora"
             (self.printer_selector
-             .setItemIcon(index, QIcon(os.fspath(MainWindow.BASE_ASSETS_PATH / 'icons' / 'printer.svg'))))
+             .setItemIcon(index, QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'printer.svg'))))
 
     def increment(self):
         self.copies_entry.incrementValue()
@@ -630,12 +623,12 @@ class MainWindow(QWidget):
         elif key == Qt.Key_Space:
             # Pausar/reanudar la impresión
             # self.control_printing()
-            self.space_press_count += 1
-            if self.space_press_count == 1:
-                self.space_press_timer.start()
-            elif self.space_press_count == 2:
-                self.space_press_timer.stop()
-                self.handle_double_space_press()
+            # self.space_press_count += 1
+            # if self.space_press_count == 1:
+            self.space_press_timer.start()
+            # elif self.space_press_count == 2:
+            #     self.space_press_timer.stop()
+            #     self.handle_double_space_press()
             self.clear_focus()
         elif key == Qt.Key_Delete:
             # Detener la impresión
@@ -801,7 +794,7 @@ class MainWindow(QWidget):
         # File "C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\src\ui\main_window.py", line 800, in printing_finished
         # self.print_thread.stopped = False
         # AttributeError: 'NoneType' object has no attribute 'stopped'
-        self.print_thread.stopped = False
+        if self.print_thread: self.print_thread.stopped = False
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setValue('0')
 

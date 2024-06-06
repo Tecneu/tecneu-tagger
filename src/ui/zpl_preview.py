@@ -1,24 +1,16 @@
 import os
-import sys
-from pathlib import Path
 import requests
 import re
 import threading
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QStackedLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QStackedLayout
 from PyQt5.QtGui import QPixmap, QMovie
 from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
+from config import BASE_ASSETS_PATH
 
 
 class LabelViewer(QWidget):
     # Definir una señal que pueda enviar un booleano indicando el éxito de la carga y una cadena con el mensaje
     imageLoaded = pyqtSignal(bool, str)
-
-    if getattr(sys, 'frozen', False):
-        # Si es así, usa la ruta de _MEIPASS
-        BASE_ASSETS_PATH = Path(sys._MEIPASS) / "assets"
-    else:
-        # De lo contrario, usa la ruta relativa desde el archivo de script
-        BASE_ASSETS_PATH = Path(__file__).resolve().parent.parent.parent / "assets"
 
     def __init__(self):
         super().__init__()
@@ -40,7 +32,7 @@ class LabelViewer(QWidget):
         # Configuración del spinner
         self.spinner = QLabel(self)
         self.spinner.setAlignment(Qt.AlignCenter)
-        self.spinner_movie = QMovie(os.fspath(LabelViewer.BASE_ASSETS_PATH / 'icons' / 'spinner.gif'))
+        self.spinner_movie = QMovie(os.fspath(BASE_ASSETS_PATH / 'icons' / 'spinner.gif'))
         self.spinner.setMovie(self.spinner_movie)
 
         self.layout.addWidget(self.label)

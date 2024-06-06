@@ -4,6 +4,7 @@ from PyQt5.QtGui import QIcon
 from ui.main_window import MainWindow
 from pathlib import Path
 from font_config import FontManager
+from config import BASE_ASSETS_PATH
 
 if __name__ == "__main__":
     app = QApplication([])
@@ -15,6 +16,6 @@ if __name__ == "__main__":
 
     window = MainWindow()
     # Aquí estableces el ícono de la ventana
-    window.setWindowIcon(QIcon('../assets/logos/tecneu-logo.ico'))
+    window.setWindowIcon(QIcon(os.fspath(BASE_ASSETS_PATH / 'logos' / 'tecneu-logo.ico')))
     window.show()
     app.exec_()
