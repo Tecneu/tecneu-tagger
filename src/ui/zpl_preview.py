@@ -5,6 +5,7 @@ import threading
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QStackedLayout
 from PyQt5.QtGui import QPixmap, QMovie
 from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
+from src.utils import normalize_zpl
 from config import BASE_ASSETS_PATH
 
 
@@ -95,6 +96,7 @@ class LabelViewer(QWidget):
             QApplication.instance().postEvent(self, ImageLoadedEvent(None))
 
     def load_image(self, zpl_label):
+        zpl_label = normalize_zpl(zpl_label)
         dimensions = self.estimate_zpl_dimensions(zpl_label)
         label_size = f"{round(dimensions[0], 2)}x{round(dimensions[1], 2)}"
         image_data = get_image_from_zpl(zpl_label, label_size)

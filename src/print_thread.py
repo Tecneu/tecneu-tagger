@@ -5,8 +5,7 @@ import time
 import threading
 from zebra import Zebra
 from config import MAX_DELAY
-import unicodedata
-import string
+from utils import normalize_zpl
 
 # print_thread.py
 __all__ = ['PrintThread']
@@ -76,37 +75,13 @@ class PrintThread(QThread):
 
         self.reset_thread_state()  # Asegurar que el estado del hilo esté correcto cada vez que se inicie run()
 
-    def normalize_zpl(self, zpl):
-        """
-        Normaliza los textos dentro del código ZPL reemplazando caracteres especiales y no ASCII.
-        """
-        # Primero, realicemos los reemplazos específicos antes de normalizar completamente
-        replacements = {
-            '®': '(R)',
-            '©': '(C)',
-            '™': '(TM)',
-            # Añade más caracteres y sus sustitutos según necesario
-        }
-        for original, substitute in replacements.items():
-            zpl = zpl.replace(original, substitute)
-
-        # Normalización NFKD para separar letras de diacríticos (acentos)
-        normalized_zpl = unicodedata.normalize('NFKD', zpl).encode('ASCII', 'ignore').decode('ASCII')
-
-        # Permitir caracteres básicos de ASCII y algunos específicos como parte del ZPL y saltos de línea
-        allowed_characters = set(string.ascii_letters + string.digits + " .,:;!?()[]{}@#%&-+/\\^_<>*~|\n")
-        # Sustituir cualquier caracter no permitido por '?'
-        normalized_zpl = ''.join(c if c in allowed_characters else '?' for c in normalized_zpl)
-
-        return normalized_zpl
-
     def print_label(self):
         """
         Modifica el ZPL para imprimir una copia a la vez y maneja la impresión,
         incluyendo la normalización del texto para evitar errores de impresión.
         """
         # Normalizar ZPL antes de realizar modificaciones
-        normalized_zpl = self.normalize_zpl(self.zpl)
+        normalized_zpl = normalize_zpl(self.zpl)
 
         if self.delay == MAX_DELAY:  # Supongamos que MAX_DELAY es el valor máximo del slider
             # Modifica ZPL para imprimir todas las etiquetas restantes
@@ -122,7 +97,6 @@ class PrintThread(QThread):
                 self.copies -= 1  # Asegurar la operación atómica sobre self.copies
 
         try:
-            print(zpl_to_print)
             self.z.output(zpl_to_print)
             print(f"Impresión realizada")
         except Exception as e:
