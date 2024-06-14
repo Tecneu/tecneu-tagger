@@ -14,7 +14,7 @@ def collect_data_files(directory):
     return paths
 
 a = Analysis(
-    ['src/main.py'],
+    ['src\\main.py'],
     pathex=[],
     binaries=[],
     datas=collect_data_files('assets'),  # Modificado para incluir recursivamente todos los archivos
@@ -25,12 +25,8 @@ a = Analysis(
     excludes=[],
     noarchive=False,
     optimize=0,
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,

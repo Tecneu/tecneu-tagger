@@ -100,10 +100,10 @@ class MainWindow(QWidget):
             mystericFont = fonts['mystericFont']
 
         self.setWindowTitle("Tecneu - Tagger")
-        self.setGeometry(800, 100, 800, 400)  # x, y, width, height
+        self.setGeometry(800, 100, 850, 400)  # x, y, width, height
 
         # Establecer el tamaño mínimo de la ventana
-        self.setMinimumSize(800, 400)
+        self.setMinimumSize(850, 400)
 
         main_layout = QHBoxLayout()  # Usar QHBoxLayout para dividir la ventana
         control_layout = QVBoxLayout()
