@@ -14,12 +14,12 @@ def collect_data_files(directory):
     return paths
 
 a = Analysis(
-    ['src\\main.py'],
-    pathex=[],
+    ['src/main.py'],
+    pathex=['src'],
     binaries=[],
     datas=collect_data_files('assets'),  # Modificado para incluir recursivamente todos los archivos
-    hiddenimports=[],
-    hookspath=[],
+    hiddenimports=['src.utils', 'src.config'],
+    hookspath=['./hooks'],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],

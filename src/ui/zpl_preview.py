@@ -5,7 +5,7 @@ import threading
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QStackedLayout
 from PyQt5.QtGui import QPixmap, QMovie
 from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
-from src.utils import normalize_zpl
+from utils import normalize_zpl
 from config import BASE_ASSETS_PATH
 
 
