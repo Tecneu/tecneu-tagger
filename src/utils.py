@@ -49,6 +49,8 @@ def normalize_zpl(zpl):
         '®': '(R)',
         '©': '(C)',
         '™': '(TM)',
+        '½': '1/2',
+        '~': '-'
         # Añade más caracteres y sus sustitutos según necesario
     }
     for original, substitute in replacements.items():
