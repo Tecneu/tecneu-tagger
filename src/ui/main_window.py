@@ -330,7 +330,7 @@ class MainWindow(QWidget):
 
         # Filtra y agrega los nombres de las impresoras al menú desplegable
         for printer in json_printers:
-            if printer["EnableBIDI"] == "TRUE":
+            if printer["EnableBIDI"] and printer["IsThermal"]:
                 item = QStandardItem(printer['Name'])
                 model.appendRow(item)
 
