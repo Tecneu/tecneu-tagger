@@ -2,7 +2,8 @@ import os
 import sys
 from pathlib import Path
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect, QListView, QApplication
+    QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect, QListView, QApplication, QSpacerItem, \
+    QSizePolicy
 from PyQt5.QtCore import QTimer, QSettings, Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QIntValidator, QColor, QPixmap, QFont, QStandardItemModel, QStandardItem
 import json
@@ -108,20 +109,20 @@ class MainWindow(QWidget):
         main_layout = QHBoxLayout()  # Usar QHBoxLayout para dividir la ventana
         control_layout = QVBoxLayout()
         # Contenedor principal para el QLineEdit y los botones
-        entry_frame = QFrame()
-        entry_layout = QHBoxLayout(entry_frame)
-        entry_layout.setContentsMargins(0, 0, 0, 0)
-        entry_layout.setSpacing(0)
-
-        self.copies_entry = SpinBoxWidget(entry_frame)
-        # self.copies_entry.setPlaceholderText("Número de copias")
-        # self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
-        self.copies_entry.valueChanged.connect(self.update_zpl_from_copies)
-        entry_layout.addWidget(self.copies_entry)
-
-        # Contenedor para los botones
-        button_container = QVBoxLayout()
-        button_container.setSpacing(0)  # Eliminar espacio entre los botones
+        # entry_frame = QFrame()
+        # entry_layout = QHBoxLayout(entry_frame)
+        # entry_layout.setContentsMargins(0, 0, 0, 0)
+        # entry_layout.setSpacing(0)
+        #
+        # self.copies_entry = SpinBoxWidget(entry_frame)
+        # # self.copies_entry.setPlaceholderText("Número de copias")
+        # # self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
+        # self.copies_entry.valueChanged.connect(self.update_zpl_from_copies)
+        # entry_layout.addWidget(self.copies_entry)
+        #
+        # # Contenedor para los botones
+        # button_container = QVBoxLayout()
+        # button_container.setSpacing(0)  # Eliminar espacio entre los botones
 
         # Define un nuevo layout para la vista previa de etiquetas
         self.labelViewer = LabelViewer()
@@ -130,11 +131,10 @@ class MainWindow(QWidget):
         preview_layout.setAlignment(Qt.AlignCenter)
 
         # Añadir el contenedor de botones al layout del frame
-        entry_layout.addLayout(button_container)
-        entry_layout.addLayout(preview_layout)
+        control_layout.addLayout(preview_layout)
 
         # Agregar el frame al layout principal
-        control_layout.addWidget(entry_frame)
+        # control_layout.addWidget(entry_frame)
 
         # Configuración del QSlider para el retraso
         self.delay_slider_layout = QHBoxLayout()
@@ -261,6 +261,28 @@ class MainWindow(QWidget):
         # Contenedor y layout para los botones
         buttons_layout = QVBoxLayout()
         buttons_layout.setAlignment(Qt.AlignTop)
+        buttons_frame = QFrame()
+        buttons_frame.setLayout(buttons_layout)
+        buttons_frame.setMinimumWidth(200)
+        buttons_frame.setMaximumWidth(250)
+
+        entry_frame = QFrame()
+        entry_layout = QHBoxLayout(entry_frame)
+        entry_layout.setContentsMargins(0, 0, 0, 0)
+        entry_layout.setSpacing(0)
+
+        self.copies_entry = SpinBoxWidget(entry_frame)
+        # self.copies_entry.setPlaceholderText("Número de copias")
+        # self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
+        self.copies_entry.valueChanged.connect(self.update_zpl_from_copies)
+
+        # Contenedor para los botones
+        button_container = QVBoxLayout()
+        button_container.setSpacing(0)  # Eliminar espacio entre los botones
+        entry_layout.addWidget(self.copies_entry)
+        entry_layout.addLayout(button_container)
+        buttons_layout.addWidget(entry_frame)
+
         self.control_button = QPushButton("Iniciar Impresión")
         self.control_button.clicked.connect(self.control_printing)
         if robotoBoldFont: self.control_button.setFont(robotoBoldFont)
@@ -275,6 +297,8 @@ class MainWindow(QWidget):
         # Contenedor y layout para el contador de etiquetas
         counter_frame = QFrame()
         counter_frame.setStyleSheet("background-color: #444; border: 1px solid black;")
+        counter_frame.setMinimumWidth(150)
+        counter_frame.setMaximumWidth(200)
         counter_layout = QVBoxLayout(counter_frame)
         counter_layout.setAlignment(Qt.AlignCenter)
 
@@ -290,9 +314,15 @@ class MainWindow(QWidget):
         self.count_label.setAlignment(Qt.AlignRight)
         counter_layout.addWidget(self.count_label)
 
-        # Añadir los dos contenedores verticales al layout horizontal
-        buttons_and_counter_layout.addLayout(buttons_layout)
-        buttons_and_counter_layout.addWidget(counter_frame)
+        # Agregar un espacio flexible para alinear los elementos a la derecha si alcanzan el ancho máximo
+        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        buttons_and_counter_layout.addSpacerItem(spacer)
+
+        # Añadir los dos contenedores al layout horizontal
+        buttons_and_counter_layout.addWidget(counter_frame, stretch=1)
+        buttons_and_counter_layout.addWidget(buttons_frame, stretch=1)
+
+        # Agregar el layout horizontal al control_layout
         control_layout.addLayout(buttons_and_counter_layout)
 
         self.status_label = QLabel("")
