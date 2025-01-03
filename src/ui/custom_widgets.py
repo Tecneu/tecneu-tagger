@@ -212,12 +212,12 @@ class ImageCarousel(QWidget):
             label_width, label_height = label.width(), label.height()
             pixmap_width, pixmap_height = label.pixmap().size().width(), label.pixmap().size().height()
 
-            # Map the mouse position proportionally to the pixmap dimensions
-            x_ratio = local_pos.x() / label_width
-            y_ratio = local_pos.y() / label_height
+            # Correct proportional mapping based on pixmap scaling
+            scale_x = pixmap_width / label_width
+            scale_y = pixmap_height / label_height
 
-            pixmap_x = int(x_ratio * pixmap_width)
-            pixmap_y = int(y_ratio * pixmap_height)
+            pixmap_x = int(local_pos.x() * scale_x)
+            pixmap_y = int(local_pos.y() * scale_y)
 
             # Adjust zoom to center on the mouse position
             zoom_x = max(0, min(pixmap_x - 20, pixmap_width - 40))
@@ -228,7 +228,7 @@ class ImageCarousel(QWidget):
             print(f"{pixmap_width}, {pixmap_height}")
             print(f"{pixmap_x}, {pixmap_y}")
             print("=================")
-            self.hover_zoom_window.update_zoom(QPoint(pixmap_x, pixmap_y))
+            self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y))
 
             # Save original pixmap if not already saved
             if not hasattr(label, '_original_pixmap'):
@@ -269,11 +269,16 @@ class HoverZoomWindow(QWidget):
 
     def update_zoom(self, pos):
         """Update the zoomed-in portion of the image dynamically."""
-        zoom_size = 40
+        ratio = 2.2
+        zoom_size = round(40 * ratio)
         print(zoom_size // 2)
+        print(f"QRECT ===== {pos.x()}, {pos.y()}")
+        print(f"Max_X = {max(0, pos.x())}")
+        print(f"Max_Y = {max(0, pos.y())}")
         source_rect = QRect(
-            max(0, pos.x() - zoom_size // 2),
-            max(0, pos.y() - zoom_size // 2),
+            round(max(0, pos.x()) * ratio),
+            round(max(0, pos.y()) * ratio),
+            # round(60 * ratio), round(60 * ratio),
             zoom_size,
             zoom_size
         )
