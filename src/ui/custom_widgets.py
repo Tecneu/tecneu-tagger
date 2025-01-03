@@ -160,10 +160,10 @@ class ImageCarousel(QWidget):
         for img_path in images:
             label = QLabel()
             pixmap = QPixmap(img_path)
-            scaled_pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            scaled_pixmap = pixmap.scaled(140, 140, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             label.setPixmap(scaled_pixmap)
             label.setAlignment(Qt.AlignCenter)
-            label.setFixedSize(100, 100)
+            label.setFixedSize(140, 140)
             label.setStyleSheet("border: 1px solid gray; position: relative;")
             label.setMouseTracking(True)
             label.enterEvent = lambda event, path=img_path, lbl=label: self.show_zoom_window(event, path, lbl)
@@ -258,18 +258,18 @@ class HoverZoomWindow(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet("border: 1px solid black; background-color: white;")
 
-        self.setFixedSize(300, 300)
-        self.move(parent.geometry().center() - QPoint(150, 150))
+        self.setFixedSize(420, 420)
+        self.move(parent.geometry().center() - QPoint(210, 210))
 
         self.pixmap = QPixmap(img_path)
         self.zoom_label = QLabel(self)
-        self.zoom_label.setFixedSize(300, 300)
+        self.zoom_label.setFixedSize(420, 420)
         self.zoom_label.setAlignment(Qt.AlignCenter)
-        self.update_zoom(QPoint(50, 50))
+        self.update_zoom(QPoint(70, 70))
 
     def update_zoom(self, pos):
         """Update the zoomed-in portion of the image dynamically."""
-        ratio = 2.2
+        ratio = 1.6
         zoom_size = round(40 * ratio)
         print(zoom_size // 2)
         print(f"QRECT ===== {pos.x()}, {pos.y()}")
@@ -283,5 +283,5 @@ class HoverZoomWindow(QWidget):
             zoom_size
         )
 
-        zoomed_pixmap = self.pixmap.copy(source_rect).scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        zoomed_pixmap = self.pixmap.copy(source_rect).scaled(420, 420, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.zoom_label.setPixmap(zoomed_pixmap)
