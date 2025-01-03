@@ -11,7 +11,7 @@ import re
 from font_config import FontManager
 
 from config import MAX_DELAY, BASE_ASSETS_PATH
-from .custom_widgets import CustomTextEdit, SpinBoxWidget
+from .custom_widgets import CustomTextEdit, SpinBoxWidget, ImageCarousel
 from .zpl_preview import LabelViewer
 from print_thread import PrintThread
 from utils import list_printers_to_json
@@ -408,6 +408,12 @@ class MainWindow(QWidget):
         # Agregar los layouts al layout principal
         main_layout.addLayout(control_layout)
         main_layout.addLayout(zpl_layout)  # Añadir el layout de ZPL al layout principal
+
+        self.show_carousel_button = QPushButton("Show Carousel")
+        self.show_carousel_button.clicked.connect(self.show_carousel)
+        main_layout.addWidget(self.show_carousel_button)
+
+        self.carousel = ImageCarousel(self)
 
         self.setLayout(main_layout)
 
@@ -836,3 +842,11 @@ class MainWindow(QWidget):
         self.settings.setValue('delay_value', self.delay_slider.value())
 
         super().closeEvent(event)
+
+    def show_carousel(self):
+        """Display the carousel window below the main window."""
+        main_geometry = self.geometry()
+        self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(), main_geometry.width(),
+                                  200)
+        self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg"])  # Replace with your image paths
+        self.carousel.show()

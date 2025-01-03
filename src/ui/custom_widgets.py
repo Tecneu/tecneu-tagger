@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QFrame
-from PyQt5.QtGui import QIntValidator
+from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame, QLabel, QScrollArea
+from PyQt5.QtGui import QIntValidator, QPixmap
 from PyQt5.QtCore import Qt, pyqtSignal
 
 from font_config import FontManager
@@ -126,3 +126,83 @@ class SpinBoxWidget(QWidget):
     def setValue(self, value):
         if self.text() != value:  # Verificar cambio para evitar bucle infinito
             self.lineEdit.setText(str(value))
+
+
+class ImageCarousel(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setStyleSheet("background-color: white; border: 1px solid gray;")
+
+        self.main_layout = QVBoxLayout()
+        self.image_layout = QHBoxLayout()
+        self.main_layout.addLayout(self.image_layout)
+        self.setLayout(self.main_layout)
+
+        self.setFixedHeight(120)
+
+    def set_images(self, images):
+        """Add images to the carousel."""
+        self.clear_images()
+        for img_path in images:
+            label = QLabel()
+            pixmap = QPixmap(img_path).scaledToHeight(180, Qt.SmoothTransformation)
+            label.setPixmap(pixmap)
+            label.setAlignment(Qt.AlignCenter)
+            label.mousePressEvent = lambda event, path=img_path: self.expand_image(path)
+            self.image_layout.addWidget(label)
+
+    def clear_images(self):
+        """Clear the current images in the carousel."""
+        while self.image_layout.count():
+            child = self.image_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+    def expand_image(self, img_path):
+        """Expand the selected image to cover both the main and carousel windows."""
+        expanded_window = ImageZoomWindow(img_path, self.parent())
+        expanded_window.show()
+
+
+class ImageZoomWindow(QWidget):
+    def __init__(self, img_path, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        self.image_label = QLabel()
+        self.image_label.setPixmap(QPixmap(img_path).scaledToWidth(800, Qt.SmoothTransformation))
+        self.image_label.setAlignment(Qt.AlignCenter)
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidget(self.image_label)
+        self.scroll_area.setWidgetResizable(True)
+
+        self.zoom_in_button = QPushButton("Zoom In")
+        self.zoom_in_button.clicked.connect(self.zoom_in)
+
+        self.zoom_out_button = QPushButton("Zoom Out")
+        self.zoom_out_button.clicked.connect(self.zoom_out)
+
+        self.button_layout = QHBoxLayout()
+        self.button_layout.addWidget(self.zoom_in_button)
+        self.button_layout.addWidget(self.zoom_out_button)
+
+        self.main_layout = QVBoxLayout()
+        self.main_layout.addWidget(self.scroll_area)
+        self.main_layout.addLayout(self.button_layout)
+        self.setLayout(self.main_layout)
+
+    def zoom_in(self):
+        current_pixmap = self.image_label.pixmap()
+        if current_pixmap:
+            new_size = current_pixmap.size() * 1.2
+            self.image_label.setPixmap(current_pixmap.scaled(new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+    def zoom_out(self):
+        current_pixmap = self.image_label.pixmap()
+        if current_pixmap:
+            new_size = current_pixmap.size() * 0.8
+            self.image_label.setPixmap(current_pixmap.scaled(new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))

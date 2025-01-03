@@ -5,7 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0f04f815-b2e3-498a-ba28-0c92d8b9f5e8" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/src/image1.jpg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/image2.jpg" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/image3.jpg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/custom_widgets.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/custom_widgets.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -71,7 +76,7 @@
     "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/Jonathan/Documents/DesarrolloSoftware/TecneuAdminPortal",
+    "last_opened_file_path": "C:/Users/Jona/Documents/DesarrolloSofware/TecneuTagger/src",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -87,18 +92,18 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\src" />
+      <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\src\ui" />
       <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets\icons" />
       <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\assets\fonts\ds-digital" />
       <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\assets\fonts\roboto" />
-      <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\assets\fonts\proxima-nova" />
-      <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\src" />
+      <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\src\ui" />
       <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\assets\fonts\mysteric" />
       <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets\icons" />
       <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger" />
-      <recent name="C:\Users\Jona\Documents\DesarrolloSofware\TecneuTagger\src" />
-      <recent name="C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger" />
     </key>
   </component>
   <component name="RunManager">
