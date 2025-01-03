@@ -210,15 +210,28 @@ class ImageCarousel(QWidget):
         if self.hover_zoom_window:
             local_pos = event.pos()
             label_width, label_height = label.width(), label.height()
+            pixmap_width, pixmap_height = label.pixmap().size().width(), label.pixmap().size().height()
 
-            # Center the zoom on the mouse position
-            x = max(0, min(local_pos.x() - 10, label_width - 20))
-            y = max(0, min(local_pos.y() - 10, label_height - 20))
+            # Map the mouse position proportionally to the pixmap dimensions
+            x_ratio = local_pos.x() / label_width
+            y_ratio = local_pos.y() / label_height
 
-            self.hover_zoom_window.update_zoom(QPoint(x, y))
+            pixmap_x = int(x_ratio * pixmap_width)
+            pixmap_y = int(y_ratio * pixmap_height)
 
-            # Save the original pixmap before drawing the grid
-            if not hasattr(label, "_original_pixmap"):
+            # Adjust zoom to center on the mouse position
+            zoom_x = max(0, min(pixmap_x - 20, pixmap_width - 40))
+            zoom_y = max(0, min(pixmap_y - 20, pixmap_height - 40))
+
+            print("=================")
+            print(f"{zoom_x}, {zoom_y}")
+            print(f"{pixmap_width}, {pixmap_height}")
+            print(f"{pixmap_x}, {pixmap_y}")
+            print("=================")
+            self.hover_zoom_window.update_zoom(QPoint(pixmap_x, pixmap_y))
+
+            # Save original pixmap if not already saved
+            if not hasattr(label, '_original_pixmap'):
                 label._original_pixmap = label.pixmap().copy()
 
             # Draw grid on the original image
@@ -229,8 +242,8 @@ class ImageCarousel(QWidget):
             painter.setPen(pen)
 
             grid_size = 2
-            for gx in range(x, x + 20, grid_size):
-                for gy in range(y, y + 20, grid_size):
+            for gx in range(zoom_x, zoom_x + 40, grid_size):
+                for gy in range(zoom_y, zoom_y + 40, grid_size):
                     painter.drawPoint(gx, gy)
 
             painter.end()
@@ -256,7 +269,8 @@ class HoverZoomWindow(QWidget):
 
     def update_zoom(self, pos):
         """Update the zoomed-in portion of the image dynamically."""
-        zoom_size = 20
+        zoom_size = 40
+        print(zoom_size // 2)
         source_rect = QRect(
             max(0, pos.x() - zoom_size // 2),
             max(0, pos.y() - zoom_size // 2),
