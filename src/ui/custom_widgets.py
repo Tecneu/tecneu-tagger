@@ -1,6 +1,7 @@
-from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame, QLabel, QScrollArea
-from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette
-from PyQt5.QtCore import Qt, pyqtSignal, QPoint
+from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
+    QScrollArea
+from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter
+from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QRect, QTimer
 
 from font_config import FontManager
 
@@ -128,7 +129,6 @@ class SpinBoxWidget(QWidget):
             self.lineEdit.setText(str(value))
 
 
-
 class ImageCarousel(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
@@ -144,11 +144,14 @@ class ImageCarousel(QWidget):
 
         self.main_layout = QVBoxLayout()
         self.image_layout = QHBoxLayout()
+        self.image_layout.setSpacing(20)  # Set spacing between images
         self.main_layout.addLayout(self.image_layout)
         self.setLayout(self.main_layout)
 
         self.setFixedHeight(200)
         self.images = []
+        self.hover_zoom_window = None
+        self.last_label = None  # To track the last label with a grid
 
     def set_images(self, images):
         """Add images to the carousel."""
@@ -161,9 +164,11 @@ class ImageCarousel(QWidget):
             label.setPixmap(scaled_pixmap)
             label.setAlignment(Qt.AlignCenter)
             label.setFixedSize(100, 100)
-            label.setStyleSheet("border: 1px solid gray;")
+            label.setStyleSheet("border: 1px solid gray; position: relative;")
             label.setMouseTracking(True)
-            label.mouseMoveEvent = lambda event, path=img_path: self.show_zoom_window(event, path)
+            label.enterEvent = lambda event, path=img_path, lbl=label: self.show_zoom_window(event, path, lbl)
+            label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
+            label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
             self.image_layout.addWidget(label)
 
     def clear_images(self):
@@ -173,66 +178,91 @@ class ImageCarousel(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
-    def show_zoom_window(self, event, img_path):
+    def show_zoom_window(self, event, img_path, label):
         """Show a zoomed-in portion of the image based on hover position."""
-        zoom_window = HoverZoomWindow(img_path, event.globalPos(), self)
-        zoom_window.show()
+        if self.hover_zoom_window is not None:
+            self.hover_zoom_window.close()
+
+        self.hover_zoom_window = HoverZoomWindow(img_path, self.parent())
+        self.hover_zoom_window.show()
+        self.update_zoom_position(event, label)
+
+    def clear_grid_and_hide_zoom(self, label):
+        """Clear the grid from the label and hide the zoom window."""
+        self.restore_original_pixmap(label)
+        self.hide_zoom_window()
+
+    def restore_original_pixmap(self, label):
+        """Restore the original pixmap of the label."""
+        if hasattr(label, "_original_pixmap"):
+            label.setPixmap(label._original_pixmap)
+            label.update()
+            del label._original_pixmap
+
+    def hide_zoom_window(self):
+        """Hide the zoom window when leaving the hover area."""
+        if self.hover_zoom_window:
+            self.hover_zoom_window.close()
+            self.hover_zoom_window = None
+
+    def update_zoom_position(self, event, label):
+        """Update the zoomed area dynamically based on mouse position."""
+        if self.hover_zoom_window:
+            local_pos = event.pos()
+            label_width, label_height = label.width(), label.height()
+
+            # Center the zoom on the mouse position
+            x = max(0, min(local_pos.x() - 10, label_width - 20))
+            y = max(0, min(local_pos.y() - 10, label_height - 20))
+
+            self.hover_zoom_window.update_zoom(QPoint(x, y))
+
+            # Save the original pixmap before drawing the grid
+            if not hasattr(label, "_original_pixmap"):
+                label._original_pixmap = label.pixmap().copy()
+
+            # Draw grid on the original image
+            pixmap = label._original_pixmap.copy()
+            painter = QPainter(pixmap)
+            pen = QPen(QColor(0, 0, 255, 128))  # Semi-transparent blue
+            pen.setWidth(1)
+            painter.setPen(pen)
+
+            grid_size = 2
+            for gx in range(x, x + 20, grid_size):
+                for gy in range(y, y + 20, grid_size):
+                    painter.drawPoint(gx, gy)
+
+            painter.end()
+            label.setPixmap(pixmap)
+            label.update()
 
 
 class HoverZoomWindow(QWidget):
-    def __init__(self, img_path, hover_pos, parent=None):
-        super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-
-        self.setFixedSize(300, 300)
-        self.move(hover_pos - QPoint(150, 150))
-
-        pixmap = QPixmap(img_path)
-        zoomed_pixmap = pixmap.scaled(600, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.image_label = QLabel(self)
-        self.image_label.setPixmap(zoomed_pixmap)
-        self.image_label.setAlignment(Qt.AlignCenter)
-        self.image_label.setGeometry(0, 0, 300, 300)
-
-
-class ImageZoomWindow(QWidget):
     def __init__(self, img_path, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setStyleSheet("border: 1px solid black; background-color: white;")
 
-        self.image_label = QLabel()
-        self.image_label.setPixmap(QPixmap(img_path).scaledToWidth(800, Qt.SmoothTransformation))
-        self.image_label.setAlignment(Qt.AlignCenter)
+        self.setFixedSize(300, 300)
+        self.move(parent.geometry().center() - QPoint(150, 150))
 
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidget(self.image_label)
-        self.scroll_area.setWidgetResizable(True)
+        self.pixmap = QPixmap(img_path)
+        self.zoom_label = QLabel(self)
+        self.zoom_label.setFixedSize(300, 300)
+        self.zoom_label.setAlignment(Qt.AlignCenter)
+        self.update_zoom(QPoint(50, 50))
 
-        self.zoom_in_button = QPushButton("Zoom In")
-        self.zoom_in_button.clicked.connect(self.zoom_in)
+    def update_zoom(self, pos):
+        """Update the zoomed-in portion of the image dynamically."""
+        zoom_size = 20
+        source_rect = QRect(
+            max(0, pos.x() - zoom_size // 2),
+            max(0, pos.y() - zoom_size // 2),
+            zoom_size,
+            zoom_size
+        )
 
-        self.zoom_out_button = QPushButton("Zoom Out")
-        self.zoom_out_button.clicked.connect(self.zoom_out)
-
-        self.button_layout = QHBoxLayout()
-        self.button_layout.addWidget(self.zoom_in_button)
-        self.button_layout.addWidget(self.zoom_out_button)
-
-        self.main_layout = QVBoxLayout()
-        self.main_layout.addWidget(self.scroll_area)
-        self.main_layout.addLayout(self.button_layout)
-        self.setLayout(self.main_layout)
-
-    def zoom_in(self):
-        current_pixmap = self.image_label.pixmap()
-        if current_pixmap:
-            new_size = current_pixmap.size() * 1.2
-            self.image_label.setPixmap(current_pixmap.scaled(new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-
-    def zoom_out(self):
-        current_pixmap = self.image_label.pixmap()
-        if current_pixmap:
-            new_size = current_pixmap.size() * 0.8
-            self.image_label.setPixmap(current_pixmap.scaled(new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        zoomed_pixmap = self.pixmap.copy(source_rect).scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.zoom_label.setPixmap(zoomed_pixmap)

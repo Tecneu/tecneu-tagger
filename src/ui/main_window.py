@@ -848,10 +848,10 @@ class MainWindow(QWidget):
         """Toggle the display of the carousel window."""
         if self.carousel_visible:
             self.carousel.hide()
+            self.carousel.hide_zoom_window()  # Ensure the zoom window is hidden as well
         else:
             main_geometry = self.geometry()
-            self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(),
-                                      main_geometry.width(), 200)
+            self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(), main_geometry.width(), 200)
             self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg"])  # Replace with your image paths
             self.carousel.show()
         self.carousel_visible = not self.carousel_visible
