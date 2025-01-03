@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame, QLabel, QScrollArea
-from PyQt5.QtGui import QIntValidator, QPixmap
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette
+from PyQt5.QtCore import Qt, pyqtSignal, QPoint
 
 from font_config import FontManager
 
@@ -128,29 +128,42 @@ class SpinBoxWidget(QWidget):
             self.lineEdit.setText(str(value))
 
 
+
 class ImageCarousel(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setStyleSheet("background-color: white; border: 1px solid gray;")
+
+        # Set semi-transparent background
+        palette = self.palette()
+        color = QColor(255, 255, 255, 51)  # 20% opacity
+        palette.setColor(QPalette.Window, color)
+        self.setPalette(palette)
+        self.setAutoFillBackground(True)
 
         self.main_layout = QVBoxLayout()
         self.image_layout = QHBoxLayout()
         self.main_layout.addLayout(self.image_layout)
         self.setLayout(self.main_layout)
 
-        self.setFixedHeight(120)
+        self.setFixedHeight(200)
+        self.images = []
 
     def set_images(self, images):
         """Add images to the carousel."""
         self.clear_images()
+        self.images = images
         for img_path in images:
             label = QLabel()
-            pixmap = QPixmap(img_path).scaledToHeight(180, Qt.SmoothTransformation)
-            label.setPixmap(pixmap)
+            pixmap = QPixmap(img_path)
+            scaled_pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            label.setPixmap(scaled_pixmap)
             label.setAlignment(Qt.AlignCenter)
-            label.mousePressEvent = lambda event, path=img_path: self.expand_image(path)
+            label.setFixedSize(100, 100)
+            label.setStyleSheet("border: 1px solid gray;")
+            label.setMouseTracking(True)
+            label.mouseMoveEvent = lambda event, path=img_path: self.show_zoom_window(event, path)
             self.image_layout.addWidget(label)
 
     def clear_images(self):
@@ -160,10 +173,27 @@ class ImageCarousel(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
-    def expand_image(self, img_path):
-        """Expand the selected image to cover both the main and carousel windows."""
-        expanded_window = ImageZoomWindow(img_path, self.parent())
-        expanded_window.show()
+    def show_zoom_window(self, event, img_path):
+        """Show a zoomed-in portion of the image based on hover position."""
+        zoom_window = HoverZoomWindow(img_path, event.globalPos(), self)
+        zoom_window.show()
+
+
+class HoverZoomWindow(QWidget):
+    def __init__(self, img_path, hover_pos, parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        self.setFixedSize(300, 300)
+        self.move(hover_pos - QPoint(150, 150))
+
+        pixmap = QPixmap(img_path)
+        zoomed_pixmap = pixmap.scaled(600, 600, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.image_label = QLabel(self)
+        self.image_label.setPixmap(zoomed_pixmap)
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setGeometry(0, 0, 300, 300)
 
 
 class ImageZoomWindow(QWidget):
