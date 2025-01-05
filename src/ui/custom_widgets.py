@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLay
     QScrollArea
 from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QRect, QTimer
+from PIL import Image
 
 from font_config import FontManager
 
@@ -160,10 +161,10 @@ class ImageCarousel(QWidget):
         for img_path in images:
             label = QLabel()
             pixmap = QPixmap(img_path)
-            scaled_pixmap = pixmap.scaled(140, 140, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            scaled_pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             label.setPixmap(scaled_pixmap)
             label.setAlignment(Qt.AlignCenter)
-            label.setFixedSize(140, 140)
+            label.setFixedSize(100, 100)
             label.setStyleSheet("border: 1px solid gray; position: relative;")
             label.setMouseTracking(True)
             label.enterEvent = lambda event, path=img_path, lbl=label: self.show_zoom_window(event, path, lbl)
@@ -224,11 +225,14 @@ class ImageCarousel(QWidget):
             zoom_y = max(0, min(pixmap_y - 20, pixmap_height - 40))
 
             print("=================")
+            print(f"scale_x: {scale_x}, scale_y: {scale_y}")
+            print(f"{label_width}, {label_height}, {pixmap_width}, {pixmap_height}")
             print(f"{zoom_x}, {zoom_y}")
             print(f"{pixmap_width}, {pixmap_height}")
             print(f"{pixmap_x}, {pixmap_y}")
             print("=================")
-            self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y))
+            # self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y))
+            self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y), scale_x, scale_y)
 
             # Save original pixmap if not already saved
             if not hasattr(label, '_original_pixmap'):
@@ -254,34 +258,51 @@ class ImageCarousel(QWidget):
 class HoverZoomWindow(QWidget):
     def __init__(self, img_path, parent=None):
         super().__init__(parent)
+        self.w = 300
+        self.h = 300
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet("border: 1px solid black; background-color: white;")
 
-        self.setFixedSize(420, 420)
-        self.move(parent.geometry().center() - QPoint(210, 210))
+        self.setFixedSize(self.w, self.h)
+        self.move(parent.geometry().center() - QPoint(self.w // 2, self.h // 2))
 
+        self.img_path = img_path
         self.pixmap = QPixmap(img_path)
         self.zoom_label = QLabel(self)
-        self.zoom_label.setFixedSize(420, 420)
+        self.zoom_label.setFixedSize(self.w, self.h)
         self.zoom_label.setAlignment(Qt.AlignCenter)
-        self.update_zoom(QPoint(70, 70))
 
-    def update_zoom(self, pos):
+        # Get the original image size
+        with Image.open(self.img_path) as img:
+            self.original_width, self.original_height = img.size
+            self.scaled_w = (self.w / 100) * self.original_width
+            self.scaled_h = (self.h / 100) * self.original_height
+            self.scale_x = self.scaled_w / self.w
+            self.scale_y = self.scaled_h / self.h
+            print(f"HOLAA=== {self.scale_x}; {self.scale_y}")
+        # self.update_zoom(QPoint(50, 50))
+        # self.update_zoom(QPoint(50, 50), 1, 1)
+
+    def update_zoom(self, pos, scale_x, scale_y):
         """Update the zoomed-in portion of the image dynamically."""
-        ratio = 1.6
-        zoom_size = round(40 * ratio)
+        ratio = 2.2
+        max_scale = max(self.scale_x, self.scale_y)
+        zoom_size = round(40 * max_scale)
         print(zoom_size // 2)
+        print(f"{self.original_width}; {self.original_height}")
         print(f"QRECT ===== {pos.x()}, {pos.y()}")
         print(f"Max_X = {max(0, pos.x())}")
         print(f"Max_Y = {max(0, pos.y())}")
+        print(f"ScaleX: {self.scale_x}; ScakeY: {self.scale_y}")
         source_rect = QRect(
-            round(max(0, pos.x()) * ratio),
-            round(max(0, pos.y()) * ratio),
+            round(max(0, pos.x()) * self.scale_x),
+            round(max(0, pos.y()) * self.scale_y),
             # round(60 * ratio), round(60 * ratio),
             zoom_size,
             zoom_size
         )
 
-        zoomed_pixmap = self.pixmap.copy(source_rect).scaled(420, 420, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        zoomed_pixmap = self.pixmap.copy(source_rect).scaled(self.w, self.h, Qt.KeepAspectRatio,
+                                                             Qt.SmoothTransformation)
         self.zoom_label.setPixmap(zoomed_pixmap)
