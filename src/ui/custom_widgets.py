@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
-    QScrollArea
-from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter
+    QScrollArea, QSpacerItem, QSizePolicy
+from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter, QBrush
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QRect, QTimer
 from PIL import Image
 
@@ -145,17 +145,18 @@ class ImageCarousel(QWidget):
 
         self.main_layout = QVBoxLayout()
         self.image_layout = QHBoxLayout()
-        self.image_layout.setSpacing(20)  # Set spacing between images
+        # self.image_layout.setSpacing(20)  # Set spacing between images
         self.main_layout.addLayout(self.image_layout)
         self.setLayout(self.main_layout)
 
-        self.setFixedHeight(200)
+        self.setFixedHeight(150)
         self.images = []
         self.hover_zoom_window = None
         self.last_label = None  # To track the last label with a grid
 
     def set_images(self, images):
         """Add images to the carousel."""
+        # Add padding at the end
         self.clear_images()
         self.images = images
         for img_path in images:
@@ -165,7 +166,15 @@ class ImageCarousel(QWidget):
             label.setPixmap(scaled_pixmap)
             label.setAlignment(Qt.AlignCenter)
             label.setFixedSize(100, 100)
-            label.setStyleSheet("border: 1px solid gray; position: relative;")
+            # label.setStyleSheet("border: 1px solid gray; position: relative; background-color: white;")
+            # Add padding to each QLabel
+            # position: relative;
+            label.setStyleSheet("""
+                QLabel {
+                    border: 1px solid gray;
+                    background-color: white; /* Optional for better visibility */
+                }
+            """)
             label.setMouseTracking(True)
             label.enterEvent = lambda event, path=img_path, lbl=label: self.show_zoom_window(event, path, lbl)
             label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
@@ -254,12 +263,41 @@ class ImageCarousel(QWidget):
             label.setPixmap(pixmap)
             label.update()
 
+    def setGeometryWithBackground(self, x, y, width, height, background_color="#000000", opacity=0.8):
+        """
+        Establece la geometría de la ventana junto con un fondo personalizado.
+
+        :param x: Posición en X de la ventana.
+        :param y: Posición en Y de la ventana.
+        :param width: Ancho de la ventana.
+        :param height: Altura de la ventana.
+        :param background_color: Color de fondo en formato HEX.
+        :param opacity: Opacidad del fondo (0.0 a 1.0).
+        """
+        # Establecer geometría
+        self.setGeometry(x, y, width, height)
+
+        # Configurar fondo semiopaco
+        r, g, b = QColor(background_color).getRgb()[:3]
+        alpha = int(opacity * 255)
+        self.background_color = QColor(r, g, b, alpha)
+        self.update()  # Forzar redibujado
+
+    def paintEvent(self, event):
+        """Dibujar el fondo personalizado."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setBrush(QBrush(self.background_color))
+        painter.setPen(Qt.NoPen)
+        painter.drawRect(self.rect())
+        painter.end()
+
 
 class HoverZoomWindow(QWidget):
     def __init__(self, img_path, parent=None):
         super().__init__(parent)
-        self.w = 300
-        self.h = 300
+        self.w = 360
+        self.h = 360
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet("border: 1px solid black; background-color: white;")

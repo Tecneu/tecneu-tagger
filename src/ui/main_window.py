@@ -106,6 +106,8 @@ class MainWindow(QWidget):
         # Establecer el tamaño mínimo de la ventana
         self.setMinimumSize(850, 400)
 
+        # self.setStyleSheet("background-color: lightblue;")
+
         main_layout = QHBoxLayout()  # Usar QHBoxLayout para dividir la ventana
         control_layout = QVBoxLayout()
         # Contenedor principal para el QLineEdit y los botones
@@ -851,7 +853,35 @@ class MainWindow(QWidget):
             self.carousel.hide_zoom_window()  # Ensure the zoom window is hidden as well
         else:
             main_geometry = self.geometry()
-            self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(), main_geometry.width(), 200)
+            # self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(), main_geometry.width(), 200)
+            self.carousel.setGeometryWithBackground(
+                x=main_geometry.x(),
+                y=main_geometry.y() + main_geometry.height(),
+                width=main_geometry.width(),
+                height=150,
+                background_color="#000000",  # Fondo negro
+                opacity=0.65  # 50% de opacidad
+            )
+            # self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg", "image4.jpeg", "image5.png"])  # Replace with your image paths
             self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg"])  # Replace with your image paths
             self.carousel.show()
         self.carousel_visible = not self.carousel_visible
+
+    def update_carousel_position(self):
+        """Update the carousel position to align with the main window."""
+        main_geometry = self.geometry()
+        # self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(), main_geometry.width(), 200)
+        self.carousel.setGeometryWithBackground(
+            x=main_geometry.x(),
+            y=main_geometry.y() + main_geometry.height(),
+            width=main_geometry.width(),
+            height=150,
+            background_color="#000000",  # Fondo negro
+            opacity=0.65  # 50% de opacidad
+        )
+
+    def moveEvent(self, event):
+        """Update the carousel's position when the main window moves."""
+        if self.carousel_visible:
+            self.update_carousel_position()
+        super().moveEvent(event)
