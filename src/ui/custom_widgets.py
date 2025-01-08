@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLay
     QScrollArea, QSpacerItem, QSizePolicy
 from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter, QBrush, QMovie
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QRect, QTimer, QUrl
-from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PIL import Image
 from config import BASE_ASSETS_PATH
 
@@ -157,9 +157,31 @@ class ImageCarousel(QWidget):
 
         self.setFixedHeight(150)
         self.network_manager = QNetworkAccessManager(self)
+        self.network_manager.finished.connect(self._log_reply)  # Conectar el manejador de depuración
         self.images = []
         self.hover_zoom_window = None
         self.last_label = None  # To track the last label with a grid
+
+    def _log_reply(self, reply):
+        """Log detailed information about the request and the reply."""
+        print("\n===== REQUEST =====")
+        request_url = reply.url().toString()
+        print(f"URL: {request_url}")
+
+        print("\n===== RESPONSE =====")
+        status_code = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)
+        print(f"Status Code: {status_code}")
+        error = reply.error()
+        print(f"Error: {error}")
+        if error != QNetworkReply.NoError:
+            print(f"Error String: {reply.errorString()}")
+        else:
+            print(f"Data Length: {len(reply.readAll())}")
+
+        # Log headers from the reply
+        print("Headers:")
+        for header, value in reply.rawHeaderPairs():
+            print(f"  {header.data().decode()}: {value.data().decode()}")
 
     def set_images(self, images):
         """Add images to the carousel."""
