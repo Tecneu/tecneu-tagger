@@ -1,8 +1,11 @@
+import os
 from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
     QScrollArea, QSpacerItem, QSizePolicy
-from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter, QBrush
-from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QRect, QTimer
+from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter, QBrush, QMovie
+from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QRect, QTimer, QUrl
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PIL import Image
+from config import BASE_ASSETS_PATH
 
 from font_config import FontManager
 
@@ -153,30 +156,19 @@ class ImageCarousel(QWidget):
         self.setLayout(self.main_layout)
 
         self.setFixedHeight(150)
+        self.network_manager = QNetworkAccessManager(self)
         self.images = []
         self.hover_zoom_window = None
         self.last_label = None  # To track the last label with a grid
 
     def set_images(self, images):
         """Add images to the carousel."""
-        # Add padding at the end
         self.clear_images()
-        # Configure layout spacing and margins
-        self.image_layout.setContentsMargins(2, 0, 2, 0)  # Outer padding
-        self.image_layout.setSpacing(0)  # Space between images
-        # self.image_layout.setContentsMargins(15, 0, 15, 0)  # Padding around the entire layout
-        # self.image_layout.setSpacing(15)  # Spacing between images
         self.images = images
-        for img_path in images:
+        for img_url in images:
             label = QLabel()
-            pixmap = QPixmap(img_path)
-            scaled_pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            label.setPixmap(scaled_pixmap)
             label.setAlignment(Qt.AlignCenter)
             label.setFixedSize(100, 100)
-            # label.setStyleSheet("border: 1px solid gray; position: relative; background-color: white;")
-            # Add padding to each QLabel
-            # position: relative;
             label.setStyleSheet("""
                 QLabel {
                     border: 1px solid gray;
@@ -184,17 +176,76 @@ class ImageCarousel(QWidget):
                     margin: 0;  /* Reset internal margins */
                 }
             """)
-            label.setMouseTracking(True)
-            label.enterEvent = lambda event, path=img_path, lbl=label: self.show_zoom_window(event, path, lbl)
-            label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
-            label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
+
+            # Show spinner while loading
+            spinner = QMovie(os.fspath(BASE_ASSETS_PATH / 'icons' / 'spinner.gif'))  # Replace with the path to your local spinner GIF
+            label.setMovie(spinner)
+            spinner.start()
+
+            # pixmap = QPixmap(img_path)
+            # scaled_pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            # label.setPixmap(scaled_pixmap)
+            # label.setStyleSheet("border: 1px solid gray; position: relative; background-color: white;")
+            # position: relative;
             # Add the QLabel to the layout
             self.image_layout.addWidget(label, alignment=Qt.AlignCenter)
-
-            # Optional: Add a spacer between items (if spacing is inconsistent)
-            spacer = QSpacerItem(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
-            self.image_layout.addSpacerItem(spacer)
             # self.image_layout.addWidget(label)
+
+            # Download and set the image from the URL
+            # request = QNetworkRequest(QUrl(img_url))
+            # reply = self.network_manager.get(request)
+            # reply.finished.connect(lambda r=reply, lbl=label, sp=spinner: self._handle_image_reply(r, lbl, sp))
+            # reply.finished.connect(self._create_image_reply_handler(reply, label, spinner))
+            # Download and set the image from the URL
+            request = QNetworkRequest(QUrl(img_url))
+            reply = self.network_manager.get(request)
+            print(img_url)
+            print(request)
+            reply.finished.connect(lambda lbl=label, sp=spinner, r=reply: self._handle_image_reply(r, lbl, sp))
+
+            # label.setMouseTracking(True)
+            # label.enterEvent = lambda event, path=img_url, lbl=label: self.show_zoom_window(event, path, lbl)
+            # label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
+            # label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
+
+    def _handle_image_reply(self, reply, label, spinner):
+        """Handle the reply for the image download."""
+        print(f"Reply finished for: {reply.url().toString()}")
+
+        if reply.error() == QNetworkReply.NoError:
+            print("Image loaded successfully.")
+            data = reply.readAll()
+            pixmap = QPixmap()
+            if pixmap.loadFromData(data):
+                label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        else:
+            print(f"Failed to load image: {reply.errorString()}")
+            label.setText("Failed to load")  # Placeholder text if image fails to load
+
+        spinner.stop()
+        label.clear()  # Clear spinner from the QLabel
+        reply.deleteLater()  # Clean up the reply object
+
+    # def _create_image_reply_handler(self, reply, label, spinner):
+    #     print("===========================================================")
+    #     print(reply);
+    #     print("===========================================================")
+    #     """Return a closure to handle the image download."""
+    #     def handle_reply():
+    #         if reply.error() == QNetworkReply.NoError:
+    #             print("CARGADO CORRECTAMENTE")
+    #             data = reply.readAll()
+    #             pixmap = QPixmap()
+    #             if pixmap.loadFromData(data):
+    #                 label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+    #         else:
+    #             label.setText("Failed to load")  # Optional: Show an error message or placeholder image
+    #
+    #         spinner.stop()
+    #         label.clear()
+    #
+    #         reply.deleteLater()  # Clean up the reply object
+    #     return handle_reply
 
     def clear_images(self):
         """Clear the current images in the carousel."""
@@ -202,6 +253,20 @@ class ImageCarousel(QWidget):
             child = self.image_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
+
+    # def _handle_image_reply(self, reply, label, spinner):
+    #     """Handle the reply for the image download."""
+    #     print(reply);
+    #     if reply.error() == QNetworkReply.NoError:
+    #         data = reply.readAll()
+    #         pixmap = QPixmap()
+    #         if pixmap.loadFromData(QByteArray(data)):
+    #             label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+    #     else:
+    #         label.setText("Failed to load")  # Optional: Show an error message or placeholder image
+    #
+    #     spinner.stop()
+    #     label.clear()
 
     def show_zoom_window(self, event, img_path, label):
         """Show a zoomed-in portion of the image based on hover position."""

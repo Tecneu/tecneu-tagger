@@ -37,7 +37,7 @@ class HTTPInterceptor:
             if response.status_code == 200:
                 self.access_token = response.json().get("access_token")
                 print("Login exitoso. Nuevo token obtenido.")
-                print(self.access_token)
+                # print(self.access_token)
                 return True
             else:
                 print(f"Error en login: {response.status_code} - {response.text}")
@@ -66,14 +66,14 @@ class HTTPInterceptor:
                     timeout=self.timeout
                 )
 
-                print(f"""
-                    {method},
-                    {url},
-                    {headers},
-                    {params},
-                    {data},
-                    {self.timeout}""")
-                print(response)
+                # print(f"""
+                #     {method},
+                #     {url},
+                #     {headers},
+                #     {params},
+                #     {data},
+                #     {self.timeout}""")
+                # print(response)
 
                 if response.status_code == 401:
                     # Intentar renovar token una vez

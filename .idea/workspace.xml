@@ -5,15 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0f04f815-b2e3-498a-ba28-0c92d8b9f5e8" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/api/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/api/endpoints.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/api/http_interceptor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TecneuTaggerV2/TecneuTagger.iml" beforeDir="false" afterPath="$PROJECT_DIR$/TecneuTaggerV2/TecneuTagger.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/api/http_interceptor.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/api/http_interceptor.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/custom_widgets.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/custom_widgets.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ui/main_window.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -207,7 +202,7 @@
       <workItem from="1721162314355" duration="658000" />
       <workItem from="1735857435542" duration="4249000" />
       <workItem from="1736197236805" duration="15419000" />
-      <workItem from="1736316752487" duration="3285000" />
+      <workItem from="1736316752487" duration="5674000" />
     </task>
     <servers />
   </component>
