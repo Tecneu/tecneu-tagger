@@ -145,6 +145,9 @@ class ImageCarousel(QWidget):
 
         self.main_layout = QVBoxLayout()
         self.image_layout = QHBoxLayout()
+
+        # self.image_layout.setContentsMargins(15, 0, 15, 0)  # Padding around the entire layout
+        # self.image_layout.setSpacing(15)  # Spacing between images
         # self.image_layout.setSpacing(20)  # Set spacing between images
         self.main_layout.addLayout(self.image_layout)
         self.setLayout(self.main_layout)
@@ -158,6 +161,11 @@ class ImageCarousel(QWidget):
         """Add images to the carousel."""
         # Add padding at the end
         self.clear_images()
+        # Configure layout spacing and margins
+        self.image_layout.setContentsMargins(2, 0, 2, 0)  # Outer padding
+        self.image_layout.setSpacing(0)  # Space between images
+        # self.image_layout.setContentsMargins(15, 0, 15, 0)  # Padding around the entire layout
+        # self.image_layout.setSpacing(15)  # Spacing between images
         self.images = images
         for img_path in images:
             label = QLabel()
@@ -173,13 +181,20 @@ class ImageCarousel(QWidget):
                 QLabel {
                     border: 1px solid gray;
                     background-color: white; /* Optional for better visibility */
+                    margin: 0;  /* Reset internal margins */
                 }
             """)
             label.setMouseTracking(True)
             label.enterEvent = lambda event, path=img_path, lbl=label: self.show_zoom_window(event, path, lbl)
             label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
             label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
-            self.image_layout.addWidget(label)
+            # Add the QLabel to the layout
+            self.image_layout.addWidget(label, alignment=Qt.AlignCenter)
+
+            # Optional: Add a spacer between items (if spacing is inconsistent)
+            spacer = QSpacerItem(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
+            self.image_layout.addSpacerItem(spacer)
+            # self.image_layout.addWidget(label)
 
     def clear_images(self):
         """Clear the current images in the carousel."""
