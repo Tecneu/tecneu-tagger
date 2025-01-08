@@ -16,6 +16,8 @@ from .zpl_preview import LabelViewer
 from print_thread import PrintThread
 from utils import list_printers_to_json
 
+from api import APIEndpoints
+
 __all__ = ['MainWindow']
 
 json_printers = json.loads(list_printers_to_json());
@@ -848,6 +850,7 @@ class MainWindow(QWidget):
 
     def toggle_carousel(self):
         """Toggle the display of the carousel window."""
+        api = APIEndpoints()
         if self.carousel_visible:
             self.carousel.hide()
             self.carousel.hide_zoom_window()  # Ensure the zoom window is hidden as well
@@ -865,6 +868,15 @@ class MainWindow(QWidget):
             # self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg", "image4.jpeg", "image5.png"])  # Replace with your image paths
             self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg"])  # Replace with your image paths
             self.carousel.show()
+
+            # Example: GET request to retrieve an item
+            inventory_id = "VIXK02268"
+            query_params = {"label_size": "8x4_5", "qty": "0"}
+            item = api.get_mercadolibre_item(inventory_id, query_params)
+            if item:
+                print("Retrieved item:", item)
+            else:
+                print("Failed to retrieve item.")
         self.carousel_visible = not self.carousel_visible
 
     def update_carousel_position(self):
