@@ -160,6 +160,7 @@ class ImageCarousel(QWidget):
         self.setFixedHeight(150)
         self.network_manager = QNetworkAccessManager(self)
         self.images = []
+        self.original_images = {}  # Store the original images
         self.hover_zoom_window = None
         self.last_label = None  # To track the last label with a grid
 
@@ -199,14 +200,10 @@ class ImageCarousel(QWidget):
             reply = self.network_manager.get(request)
             if not reply:
                 print("Failed to create reply object.")
-            print(img_url)
-            print(request)
-            print(reply)
-            # reply.finished.connect(lambda lbl=label, r=reply: self._handle_image_reply(r, lbl))
-            reply.finished.connect(self._create_image_reply_handler(reply, label, spinner))
+            reply.finished.connect(self._create_image_reply_handler(reply, label, spinner, img_url))
             print("Finished signal connected.")
 
-    def _create_image_reply_handler(self, reply, label, spinner):
+    def _create_image_reply_handler(self, reply, label, spinner, img_url):
         def handle_reply():
             if reply.error() == QNetworkReply.NoError:
                 print("Image loaded successfully.")
@@ -227,13 +224,16 @@ class ImageCarousel(QWidget):
 
                 pixmap = QPixmap()
                 if pixmap.loadFromData(data):
+                    # Store the original image
+                    self.original_images[img_url] = pixmap
+
                     # Set the loaded image to the label
                     label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
                     # Configure mouse events dynamically after successful load
                     label.setMouseTracking(True)
                     print(f"AQUI URL: {reply.url().toString()}")
-                    label.enterEvent = lambda event, path=reply.url().toString(), lbl=label: self.show_zoom_window(event, path, lbl)
+                    label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
                     label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
                     label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
                 else:
@@ -265,14 +265,19 @@ class ImageCarousel(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
-    def show_zoom_window(self, event, img_path, label):
-        """Show a zoomed-in portion of the image based on hover position."""
+    def show_zoom_window(self, event, label, img_url):
+        """Show a zoomed-in portion of the image based on the QLabel's pixmap."""
         if self.hover_zoom_window is not None:
             self.hover_zoom_window.close()
 
-        self.hover_zoom_window = HoverZoomWindow(img_path, self.parent())
-        self.hover_zoom_window.show()
-        self.update_zoom_position(event, label)
+        # Retrieve the original image
+        if img_url in self.original_images:
+            pixmap = self.original_images[img_url]
+            self.hover_zoom_window = HoverZoomWindow(pixmap, self.parent())
+            self.hover_zoom_window.show()
+            self.update_zoom_position(event, label)
+        else:
+            print("No pixmap available for zooming.")
 
     def clear_grid_and_hide_zoom(self, label):
         """Clear the grid from the label and hide the zoom window."""
@@ -371,7 +376,7 @@ class ImageCarousel(QWidget):
 
 
 class HoverZoomWindow(QWidget):
-    def __init__(self, img_path, parent=None):
+    def __init__(self, pixmap, parent=None):
         super().__init__(parent)
         self.w = 360
         self.h = 360
@@ -382,26 +387,25 @@ class HoverZoomWindow(QWidget):
         self.setFixedSize(self.w, self.h)
         self.move(parent.geometry().center() - QPoint(self.w // 2, self.h // 2))
 
-        self.img_path = img_path
-        self.pixmap = QPixmap(img_path)
+        # self.img_path = img_path
+        # self.pixmap = QPixmap(img_path)
+        self.pixmap = pixmap
         self.zoom_label = QLabel(self)
         self.zoom_label.setFixedSize(self.w, self.h)
         self.zoom_label.setAlignment(Qt.AlignCenter)
-
         # Get the original image size
-        with Image.open(self.img_path) as img:
-            self.original_width, self.original_height = img.size
-            self.scaled_w = (self.w / 100) * self.original_width
-            self.scaled_h = (self.h / 100) * self.original_height
-            self.scale_x = self.scaled_w / self.w
-            self.scale_y = self.scaled_h / self.h
-            print(f"HOLAA=== {self.scale_x}; {self.scale_y}")
+        self.original_width = pixmap.width()
+        self.original_height = pixmap.height()
+        self.scaled_w = (self.w / 100) * self.original_width
+        self.scaled_h = (self.h / 100) * self.original_height
+        self.scale_x = self.scaled_w / self.w
+        self.scale_y = self.scaled_h / self.h
+        print(f"HOLAA=== {self.scale_x}; {self.scale_y}")
         # self.update_zoom(QPoint(50, 50))
         # self.update_zoom(QPoint(50, 50), 1, 1)
 
     def update_zoom(self, pos, scale_x, scale_y):
         """Update the zoomed-in portion of the image dynamically."""
-        # ratio = 2.2
         max_scale = max(self.scale_x, self.scale_y)
         zoom_size = round(40 * max_scale)
         print(zoom_size // 2)
@@ -413,7 +417,6 @@ class HoverZoomWindow(QWidget):
         source_rect = QRect(
             round(max(0, pos.x()) * self.scale_x),
             round(max(0, pos.y()) * self.scale_y),
-            # round(60 * ratio), round(60 * ratio),
             zoom_size,
             zoom_size
         )
