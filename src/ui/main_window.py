@@ -31,6 +31,8 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.settings = QSettings('Tecneu', 'TecneuTagger')
+        self.api = APIEndpoints()
+
         self.print_thread = None
         self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
         self.is_paused = False  # Inicializa un atributo para llevar el seguimiento del estado de pausa
@@ -112,33 +114,10 @@ class MainWindow(QWidget):
 
         main_layout = QHBoxLayout()  # Usar QHBoxLayout para dividir la ventana
         control_layout = QVBoxLayout()
-        # Contenedor principal para el QLineEdit y los botones
-        # entry_frame = QFrame()
-        # entry_layout = QHBoxLayout(entry_frame)
-        # entry_layout.setContentsMargins(0, 0, 0, 0)
-        # entry_layout.setSpacing(0)
-        #
-        # self.copies_entry = SpinBoxWidget(entry_frame)
-        # # self.copies_entry.setPlaceholderText("Número de copias")
-        # # self.copies_entry.textChanged.connect(self.update_zpl_from_copies)
-        # self.copies_entry.valueChanged.connect(self.update_zpl_from_copies)
-        # entry_layout.addWidget(self.copies_entry)
-        #
-        # # Contenedor para los botones
-        # button_container = QVBoxLayout()
-        # button_container.setSpacing(0)  # Eliminar espacio entre los botones
 
-        # Define un nuevo layout para la vista previa de etiquetas
+        # Define un nuevo widget para la vista previa de etiquetas
         self.labelViewer = LabelViewer()
-        preview_layout = QVBoxLayout()
-        preview_layout.addWidget(self.labelViewer)
-        preview_layout.setAlignment(Qt.AlignCenter)
-
-        # Añadir el contenedor de botones al layout del frame
-        control_layout.addLayout(preview_layout)
-
-        # Agregar el frame al layout principal
-        # control_layout.addWidget(entry_frame)
+        control_layout.addWidget(self.labelViewer)
 
         # Configuración del QSlider para el retraso
         self.delay_slider_layout = QHBoxLayout()
@@ -418,7 +397,6 @@ class MainWindow(QWidget):
         main_layout.addWidget(self.show_carousel_button)
 
         self.carousel = ImageCarousel(self)
-        self.carousel_visible = False
 
         self.setLayout(main_layout)
 
@@ -575,6 +553,30 @@ class MainWindow(QWidget):
 
                 new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
 
+            print(f"BARCODE ========== {self.extract_barcode(zpl_text)}");
+            # Obtener informacion del item
+            inventory_id = self.extract_barcode(zpl_text)
+            print(f"COPIES_STR: {copies_str if copies_str.isdigit() else "0"}")
+            query_params = {"label_size": "4_x_2_5", "qty": copies_str if copies_str.isdigit() else "0"}
+            item = self.api.get_mercadolibre_item(inventory_id, query_params)
+            if item:
+                # print("Retrieved item:", item)
+                print("Retrieved item:")
+
+                # Extraer URLs de las imágenes
+                image_urls = [picture["url"] for picture in item.get("pictures", [])]
+
+                # Asignar imágenes al carrusel
+                if image_urls:
+                    print("Imágenes cargadas en el carrusel:", image_urls)
+                    self.carousel.set_images(image_urls)
+                    self.carousel.show_carousel(parent_geometry=self.geometry())
+                else:
+                    self.set_status_message("No se encontraron imágenes del producto", duration=5, countdown=True,
+                                            color='#BD2A2E')
+            else:
+                self.set_status_message("Fallo el obtener el item", duration=5, countdown=True, color='#BD2A2E')
+
             # print("LABEL PREVIEW")
             # print(new_zpl_text)
             self.labelViewer.preview_label(new_zpl_text)
@@ -583,6 +585,24 @@ class MainWindow(QWidget):
             self.labelViewer.clear_preview()
 
         self.updating_copies = False
+
+    def extract_barcode(self, zpl_text):
+        """
+        Extracts the barcode from a ZPL code.
+
+        :param zpl_text: ZPL content as a string.
+        :return: Extracted barcode or None if not found.
+        """
+        # Patrón para encontrar el bloque ^BCN seguido de ^FD...^FS
+        pattern = r"\^BCN.*?\^FD(.*?)\^FS"
+
+        # Buscar el patrón en el texto ZPL
+        match = re.search(pattern, zpl_text, re.DOTALL)
+
+        if match:
+            return match.group(1).strip()
+        else:
+            return None
 
     def update_zpl_from_copies(self):
         if self.updating_copies:  # Evita la recursión si validate_and_update_copies_from_zpl ya está en proceso
@@ -850,56 +870,28 @@ class MainWindow(QWidget):
 
     def toggle_carousel(self):
         """Toggle the display of the carousel window."""
-        api = APIEndpoints()
-        if self.carousel_visible:
-            self.carousel.hide()
-            self.carousel.hide_zoom_window()  # Ensure the zoom window is hidden as well
+        if self.carousel.is_visible:
+            self.carousel.hide_carousel()
         else:
-            main_geometry = self.geometry()
-            # self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(), main_geometry.width(), 200)
-            self.carousel.setGeometryWithBackground(
-                x=main_geometry.x(),
-                y=main_geometry.y() + main_geometry.height(),
-                width=main_geometry.width(),
-                height=150,
-                background_color="#000000",  # Fondo negro
-                opacity=0.65  # 50% de opacidad
-            )
-            self.carousel.set_images(["https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg", "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg", "https://http2.mlstatic.com/D_NQ_NP_945268-MLM53608146996_022023-F.jpg"])  # Replace with your image paths
-            # self.carousel.set_images(["https://i.ibb.co/D529sNf/3840x5120-8a459e01fc8e7715835ae0f26f07c0a4363919dceb51b635-tx-Gd0-Bn-D.jpg"])
-            # self.carousel.set_images(["https://i.ibb.co/ZY1sv2J/descarga.jpg"])
+            self.carousel.set_images(["https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg",
+                                      "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg"])
             # self.carousel.set_images([
             #     "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg",
             #     "https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg"
             # ])
-            self.carousel.show()
-
-            # Example: GET request to retrieve an item
-            # inventory_id = "VIXK02268"
-            # query_params = {"label_size": "8x4_5", "qty": "0"}
-            # item = api.get_mercadolibre_item(inventory_id, query_params)
-            # if item:
-            #     # print("Retrieved item:", item)
-            #     print("Retrieved item:")
-            # else:
-            #     print("Failed to retrieve item.")
-        self.carousel_visible = not self.carousel_visible
+            self.carousel.show_carousel(parent_geometry=self.geometry())
 
     def update_carousel_position(self):
         """Update the carousel position to align with the main window."""
-        main_geometry = self.geometry()
-        # self.carousel.setGeometry(main_geometry.x(), main_geometry.y() + main_geometry.height(), main_geometry.width(), 200)
-        self.carousel.setGeometryWithBackground(
-            x=main_geometry.x(),
-            y=main_geometry.y() + main_geometry.height(),
-            width=main_geometry.width(),
-            height=150,
-            background_color="#000000",  # Fondo negro
-            opacity=0.65  # 50% de opacidad
-        )
+        if self.carousel.is_visible:
+            self.carousel._configure_geometry(parent_geometry=self.geometry())
 
     def moveEvent(self, event):
         """Update the carousel's position when the main window moves."""
-        if self.carousel_visible:
-            self.update_carousel_position()
+        self.update_carousel_position()
         super().moveEvent(event)
+
+    def resizeEvent(self, event):
+        """Update the carousel's position when the main window resizes."""
+        self.update_carousel_position()
+        super().resizeEvent(event)  # Mantiene el comportamiento original
