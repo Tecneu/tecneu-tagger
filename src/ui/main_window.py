@@ -865,24 +865,24 @@ class MainWindow(QWidget):
                 background_color="#000000",  # Fondo negro
                 opacity=0.65  # 50% de opacidad
             )
-            # self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg", "image4.jpeg", "image5.png"])  # Replace with your image paths
-            # self.carousel.set_images(["image1.jpg", "image2.jpg", "image3.jpg"])  # Replace with your image paths
-            # self.carousel.set_images(["https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg", "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg", "https://http2.mlstatic.com/D_NQ_NP_945268-MLM53608146996_022023-F.jpg"])  # Replace with your image paths
+            self.carousel.set_images(["https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg", "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg", "https://http2.mlstatic.com/D_NQ_NP_945268-MLM53608146996_022023-F.jpg"])  # Replace with your image paths
             # self.carousel.set_images(["https://i.ibb.co/D529sNf/3840x5120-8a459e01fc8e7715835ae0f26f07c0a4363919dceb51b635-tx-Gd0-Bn-D.jpg"])
             # self.carousel.set_images(["https://i.ibb.co/ZY1sv2J/descarga.jpg"])
-            # self.carousel.set_images(["https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg"])
-            self.carousel.set_images(["https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg", "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg"])
+            # self.carousel.set_images([
+            #     "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg",
+            #     "https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg"
+            # ])
             self.carousel.show()
 
             # Example: GET request to retrieve an item
-            inventory_id = "VIXK02268"
-            query_params = {"label_size": "8x4_5", "qty": "0"}
-            item = api.get_mercadolibre_item(inventory_id, query_params)
-            if item:
-                # print("Retrieved item:", item)
-                print("Retrieved item:")
-            else:
-                print("Failed to retrieve item.")
+            # inventory_id = "VIXK02268"
+            # query_params = {"label_size": "8x4_5", "qty": "0"}
+            # item = api.get_mercadolibre_item(inventory_id, query_params)
+            # if item:
+            #     # print("Retrieved item:", item)
+            #     print("Retrieved item:")
+            # else:
+            #     print("Failed to retrieve item.")
         self.carousel_visible = not self.carousel_visible
 
     def update_carousel_position(self):

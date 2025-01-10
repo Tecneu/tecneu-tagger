@@ -168,6 +168,9 @@ class ImageCarousel(QWidget):
         """Add images to the carousel."""
         self.clear_images()
         self.images = images
+        # self.spinners = {}  # Track spinners to ensure they are properly handled
+        # self.labels = {}  # Track labels to associate them with their respective images
+
         for img_url in images:
             label = QLabel()
             label.setAlignment(Qt.AlignCenter)
@@ -188,75 +191,140 @@ class ImageCarousel(QWidget):
             label.setMovie(spinner)
             spinner.start()
 
+            # Add the spinner and label to their respective tracking dictionaries
+            # self.spinners[img_url] = spinner
+            # self.labels[img_url] = label
+
             # Add the QLabel to the layout
             self.image_layout.addWidget(label, alignment=Qt.AlignCenter)
             # self.image_layout.addWidget(label)
 
             # Download and set the image from the URL
-            if not isinstance(self.network_manager, QNetworkAccessManager):
-                print("Network manager is not initialized correctly.")
+            # if not isinstance(self.network_manager, QNetworkAccessManager):
+            #     print("Network manager is not initialized correctly.")
             request = QNetworkRequest(QUrl(img_url))
             print(f"Sending request to {img_url}")
+
             reply = self.network_manager.get(request)
-            if not reply:
-                print("Failed to create reply object.")
-            reply.finished.connect(self._create_image_reply_handler(reply, label, spinner, img_url))
-            print("Finished signal connected.")
+            # reply.finished.connect(lambda r=reply: self.handle_reply(r, label, spinner, img_url))
+            reply.finished.connect(
+                lambda r=reply, lbl=label, sp=spinner, url=img_url: self.handle_reply(r, lbl, sp, url))
 
-    def _create_image_reply_handler(self, reply, label, spinner, img_url):
-        def handle_reply():
-            if reply.error() == QNetworkReply.NoError:
-                print("Image loaded successfully.")
-                data = reply.readAll()
-                print(data)
-                print(f"Data length: {len(data)}")
-                content_length = int(reply.rawHeader(b"Content-Length").data())
-                print(f"Expected Content-Length: {content_length}")
+        print("All requests sent.")
 
-                print(f"{len(data)}, {content_length}")
-                if len(data) != content_length:
-                    print("Data length does not match Content-Length. Skipping.")
-                    label.setText("Invalid Image")
-                    spinner.stop()
-                    spinner.deleteLater()
-                    reply.deleteLater()
-                    return
+        # reply = self.network_manager.get(request)
+        # if not reply:
+        #     print("Failed to create reply object.")
+        # reply.finished.connect(self._create_image_reply_handler(reply, label, spinner, img_url))
+        # print("Finished signal connected.")
 
-                pixmap = QPixmap()
-                if pixmap.loadFromData(data):
-                    # Store the original image
-                    self.original_images[img_url] = pixmap
+    def handle_reply(self, reply, label, spinner, img_url):
+        # spinner = self.spinners.get(img_url)  # Safely retrieve the spinner
+        # label = self.labels.get(img_url)  # Retrieve the correct label for the URL
+        if reply.error() == QNetworkReply.NoError:
+            print("Image loaded successfully.")
+            data = reply.readAll()
+            # print(data)
+            print(f"Data length: {len(data)}")
+            content_length = int(reply.rawHeader(b"Content-Length").data())
+            print(f"Expected Content-Length: {content_length}")
 
-                    # Set the loaded image to the label
-                    label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            print(f"{len(data)}, {content_length}")
+            # if len(data) != content_length:
+            #     print("Data length does not match Content-Length. Skipping.")
+            #     label.setText("Invalid Image")
+            #     # spinner.stop()
+            #     # spinner.deleteLater()
+            #     # Safely stop and delete spinner
+            #     if spinner:
+            #         spinner.stop()
+            #         spinner.deleteLater()
+            #         del self.spinners[img_url]  # Remove spinner from tracking
+            #     reply.deleteLater()
+            #     return
 
-                    # Configure mouse events dynamically after successful load
-                    label.setMouseTracking(True)
-                    print(f"AQUI URL: {reply.url().toString()}")
-                    label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
-                    label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
-                    label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
-                else:
-                    print("Failed to load pixmap.")
-                    label.setText("Invalid Image")
+            pixmap = QPixmap()
+            if pixmap.loadFromData(data):
+                # Store the original image
+                self.original_images[img_url] = pixmap
+
+                # Set the loaded image to the label
+                label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+                # Configure mouse events dynamically after successful load
+                label.setMouseTracking(True)
+                print(f"AQUI URL: {reply.url().toString()}")
+                label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
+                label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
+                label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
             else:
-                print(f"Failed to load image: {reply.error()}")
-                label.setText("Failed to load")
+                print("Failed to load pixmap.")
+                label.setText("Invalid Image")
+        else:
+            print(f"Failed to load image: {reply.error()}")
+            label.setText("Failed to load")
 
+        # Safely stop and delete spinner
+        if spinner:
             spinner.stop()
             spinner.deleteLater()
-            reply.deleteLater()
+            # del self.spinners[img_url]  # Remove spinner from tracking
+        reply.deleteLater()
 
-        # Timeout Handling
-        def handle_timeout():
-            print("Request timed out.")
-            spinner.stop()
-            spinner.deleteLater()
-            label.setText("Timeout")
-            reply.abort()
-            reply.deleteLater()
-
-        return handle_reply
+    # def _create_image_reply_handler(self, reply, label, spinner, img_url):
+    #     def handle_reply():
+    #         if reply.error() == QNetworkReply.NoError:
+    #             print("Image loaded successfully.")
+    #             data = reply.readAll()
+    #             print(data)
+    #             print(f"Data length: {len(data)}")
+    #             content_length = int(reply.rawHeader(b"Content-Length").data())
+    #             print(f"Expected Content-Length: {content_length}")
+    #
+    #             print(f"{len(data)}, {content_length}")
+    #             if len(data) != content_length:
+    #                 print("Data length does not match Content-Length. Skipping.")
+    #                 label.setText("Invalid Image")
+    #                 spinner.stop()
+    #                 spinner.deleteLater()
+    #                 reply.deleteLater()
+    #                 return
+    #
+    #             pixmap = QPixmap()
+    #             if pixmap.loadFromData(data):
+    #                 # Store the original image
+    #                 self.original_images[img_url] = pixmap
+    #
+    #                 # Set the loaded image to the label
+    #                 label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+    #
+    #                 # Configure mouse events dynamically after successful load
+    #                 label.setMouseTracking(True)
+    #                 print(f"AQUI URL: {reply.url().toString()}")
+    #                 label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
+    #                 label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
+    #                 label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
+    #             else:
+    #                 print("Failed to load pixmap.")
+    #                 label.setText("Invalid Image")
+    #         else:
+    #             print(f"Failed to load image: {reply.error()}")
+    #             label.setText("Failed to load")
+    #
+    #         spinner.stop()
+    #         spinner.deleteLater()
+    #         reply.deleteLater()
+    #
+    #     # Timeout Handling
+    #     def handle_timeout():
+    #         print("Request timed out.")
+    #         spinner.stop()
+    #         spinner.deleteLater()
+    #         label.setText("Timeout")
+    #         reply.abort()
+    #         reply.deleteLater()
+    #
+    #     return handle_reply
 
     def clear_images(self):
         """Clear the current images in the carousel."""

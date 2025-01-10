@@ -23,9 +23,9 @@ class HTTPInterceptor:
         self.timeout = 2.5  # Timeout en segundos
 
     def login(self):
-        print(f"API_EMAIL: {API_EMAIL}")
-        print(f"API_PASSWORD: {API_PASSWORD}")
-        print(f"API_BASE_URL: {API_BASE_URL}")
+        # print(f"API_EMAIL: {API_EMAIL}")
+        # print(f"API_PASSWORD: {API_PASSWORD}")
+        # print(f"API_BASE_URL: {API_BASE_URL}")
         """Realiza login para obtener un nuevo access_token."""
         login_url = f"{self.base_url}/auth/login"
         try:
