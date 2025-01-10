@@ -11,7 +11,7 @@ import re
 from font_config import FontManager
 
 from config import MAX_DELAY, BASE_ASSETS_PATH
-from .custom_widgets import CustomTextEdit, SpinBoxWidget, ImageCarousel
+from .custom_widgets import CustomTextEdit, CustomSearchBar, SpinBoxWidget, ImageCarousel
 from .zpl_preview import LabelViewer
 from print_thread import PrintThread
 from utils import list_printers_to_json
@@ -315,6 +315,36 @@ class MainWindow(QWidget):
 
         # Layout para QTextEdit y el botón de borrar
         zpl_layout = QVBoxLayout()
+
+        # Layout para el Search Bar
+        search_layout = QHBoxLayout()
+        # Campo de búsqueda
+        self.search_bar = CustomSearchBar()
+        self.search_bar.setPlaceholderText("Buscar por Inventory_id...")
+        self.search_bar.setFixedHeight(30)
+        self.search_bar.returnPressed.connect(self.execute_search)  # Buscar al presionar Enter
+
+        # Botón de búsqueda con icono de lupa
+        self.search_button = QPushButton()
+        search_icon = QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'search.svg'))  # Asegúrate de tener el ícono
+        self.search_button.setIcon(search_icon)
+        self.search_button.setFixedSize(30, 30)
+        self.search_button.clicked.connect(self.execute_search)  # Buscar al hacer clic en la lupa
+
+        # Botón para pegar del portapapeles
+        self.paste_search_button = QPushButton()
+        paste_icon = QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'paste.svg'))
+        self.paste_search_button.setIcon(paste_icon)
+        self.paste_search_button.setFixedSize(30, 30)
+        self.paste_search_button.clicked.connect(self.paste_and_search)  # Buscar al pegar
+
+        # Añadir widgets al layout del Search Bar
+        search_layout.addWidget(self.search_bar)
+        search_layout.addWidget(self.search_button)
+        search_layout.addWidget(self.paste_search_button)
+
+        zpl_layout.addLayout(search_layout)
+
         self.zpl_textedit = CustomTextEdit()
         self.zpl_textedit.setPlaceholderText("Ingrese el ZPL aquí...")
         self.zpl_textedit.textChanged.connect(self.validate_and_update_copies_from_zpl)
@@ -371,7 +401,7 @@ class MainWindow(QWidget):
         """)
         # Establecer el tamaño del ícono (opcional)
         self.clear_zpl_button.setIconSize(QSize(20, 20))
-        self.clear_zpl_button.clicked.connect(self.zpl_textedit.clear)
+        self.clear_zpl_button.clicked.connect(self.reset_all)
         zpl_buttons_layout.addWidget(self.clear_zpl_button)
 
         # Botón para pegar desde el portapapeles
@@ -399,6 +429,42 @@ class MainWindow(QWidget):
         self.carousel = ImageCarousel(self)
 
         self.setLayout(main_layout)
+
+    def reset_all(self):
+        self.zpl_textedit.clear()
+        self.search_bar.clear()
+        self.carousel.hide_carousel()
+
+
+    def execute_search(self):
+        """Executes a search using the text from the search bar."""
+        search_text = self.search_bar.text().strip()
+        if not search_text:
+            self.set_status_message("Por favor ingresa un ID o código para buscar.", duration=5, countdown=True, color='#BD2A2E')
+            return
+
+        copies_str = self.copies_entry.text()
+        query_params = {"label_size": "4_x_2_5", "qty": copies_str if copies_str.isdigit() else "0"}
+
+        # Consulta a la API
+        item = self.api.get_mercadolibre_item(search_text, query_params)
+
+        if item and "label" in item:
+            self.zpl_textedit.setPlainText(item["label"])  # Pega el ZPL en el campo
+            self.latest_item_data = item  # Guarda la respuesta completa para otras funciones
+            self.set_status_message("Etiqueta cargada correctamente.", duration=3, color='#28A745')
+        else:
+            self.set_status_message("No se encontró ningún resultado.", duration=5, countdown=True, color='#BD2A2E')
+
+    def paste_and_search(self):
+        """Pega el contenido del portapapeles y ejecuta la búsqueda."""
+        clipboard_text = QApplication.clipboard().text().strip().strip('"')
+        # print(f"====================================> {clipboard_text}")
+        if clipboard_text:
+            self.search_bar.setText(clipboard_text)
+            self.execute_search()
+        else:
+            self.set_status_message("El portapapeles está vacío.", duration=5, countdown=True, color='#BD2A2E')
 
     # Asegúrate de llamar a esta función después de operaciones que cambian la visibilidad o el orden de los widgets
     def raise_slider_labels(self):
@@ -466,7 +532,7 @@ class MainWindow(QWidget):
         # Elimina espacios en blanco y comillas dobles al principio y al final
         text = clipboard.text().strip().strip('"')
         if text == '':
-            self.set_status_message("No hay texto para pegar", duration=5, countdown=True, color='#BD2A2E')
+            self.set_status_message("No hay texto para pegar.", duration=5, countdown=True, color='#BD2A2E')
             return
 
         self.zpl_textedit.setPlainText(text)  # Pegar como texto plano

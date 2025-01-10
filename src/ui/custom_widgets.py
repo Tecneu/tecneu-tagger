@@ -10,7 +10,7 @@ from config import BASE_ASSETS_PATH
 from font_config import FontManager
 
 # ui/custom_widgets.py
-__all__ = ['CustomTextEdit', 'SpinBoxWidget']
+__all__ = ['CustomTextEdit', 'SpinBoxWidget', 'CustomSearchBar']
 
 QApplication.processEvents()
 
@@ -24,6 +24,16 @@ class CustomTextEdit(QTextEdit):
             (super(CustomTextEdit, self)
              .insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
 
+class CustomSearchBar(QLineEdit):
+    def insertFromMimeData(self, source):
+        print("ENTRO AQUI MIME DATA")
+        if source.hasText():
+            print("ENTRO AQUI MIME DATA")
+            text = source.text()
+            # Elimina espacios en blanco y comillas dobles al principio y al final
+            text = text.strip().strip('"')
+            (super(CustomSearchBar, self)
+             .insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
 
 class SpinBoxWidget(QWidget):
     valueChanged = pyqtSignal(int)  # Definir una nueva señal que pasa el valor actual
