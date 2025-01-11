@@ -622,7 +622,7 @@ class MainWindow(QWidget):
             print(f"BARCODE ========== {self.extract_barcode(zpl_text)}");
             # Obtener informacion del item
             inventory_id = self.extract_barcode(zpl_text)
-            print(f"COPIES_STR: {copies_str if copies_str.isdigit() else "0"}")
+            print(f"COPIES_STR: {copies_str if copies_str.isdigit() else '0'}")
             query_params = {"label_size": "4_x_2_5", "qty": copies_str if copies_str.isdigit() else "0"}
             item = self.api.get_mercadolibre_item(inventory_id, query_params)
             if item:
