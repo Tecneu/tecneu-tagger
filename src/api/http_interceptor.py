@@ -1,18 +1,19 @@
+import os
+
 import requests
 from dotenv import load_dotenv
-from os.path import join, dirname
-import os
 from requests.exceptions import RequestException, Timeout
 
 from config import BASE_ENV_PATH
+
 # from app_secrets import API_EMAIL, API_PASSWORD, API_BASE_URL
 
 # dotenv_path = join(dirname(__file__), '.env.production')
 load_dotenv(BASE_ENV_PATH / ".env.development")
 
-API_EMAIL = os.getenv('API_EMAIL')
-API_PASSWORD = os.getenv('API_PASSWORD')
-API_BASE_URL = os.getenv('API_BASE_URL')
+API_EMAIL = os.getenv("API_EMAIL")
+API_PASSWORD = os.getenv("API_PASSWORD")
+API_BASE_URL = os.getenv("API_BASE_URL")
 
 
 class HTTPInterceptor:
@@ -29,10 +30,11 @@ class HTTPInterceptor:
         """Realiza login para obtener un nuevo access_token."""
         login_url = f"{self.base_url}/auth/login"
         try:
-            response = requests.post(login_url, json={
-                "email": API_EMAIL,
-                "password": API_PASSWORD
-            }, timeout=self.timeout)
+            response = requests.post(
+                login_url,
+                json={"email": API_EMAIL, "password": API_PASSWORD},
+                timeout=self.timeout,
+            )
 
             if response.status_code == 200:
                 self.access_token = response.json().get("access_token")
@@ -52,9 +54,7 @@ class HTTPInterceptor:
         login_attempts = 0
 
         while retries < self.max_retries:
-            headers = {
-                "Authorization": f"Bearer {self.access_token}"
-            }  # Actualiza el token en cada intento
+            headers = {"Authorization": f"Bearer {self.access_token}"}  # Actualiza el token en cada intento
 
             try:
                 response = requests.request(
@@ -63,7 +63,7 @@ class HTTPInterceptor:
                     headers=headers,
                     params=params,
                     json=data,
-                    timeout=self.timeout
+                    timeout=self.timeout,
                 )
 
                 # print(f"""

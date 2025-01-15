@@ -1,26 +1,38 @@
-import os
-import sys
-from pathlib import Path
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, \
-    QMessageBox, QSlider, QComboBox, QFrame, QGraphicsDropShadowEffect, QListView, QApplication, QSpacerItem, \
-    QSizePolicy
-from PyQt5.QtCore import QTimer, QSettings, Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon, QIntValidator, QColor, QPixmap, QFont, QStandardItemModel, QStandardItem
 import json
+import os
 import re
-from font_config import FontManager
 
-from config import MAX_DELAY, BASE_ASSETS_PATH
-from .custom_widgets import CustomTextEdit, CustomSearchBar, SpinBoxWidget, ImageCarousel
-from .zpl_preview import LabelViewer
+from PyQt5.QtCore import QSettings, QSize, Qt, QTimer
+from PyQt5.QtGui import QColor, QIcon, QPixmap, QStandardItem, QStandardItemModel
+from PyQt5.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QFrame,
+    QGraphicsDropShadowEffect,
+    QHBoxLayout,
+    QLabel,
+    QListView,
+    QMessageBox,
+    QPushButton,
+    QSizePolicy,
+    QSlider,
+    QSpacerItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from api.endpoints import APIEndpoints
+from config import BASE_ASSETS_PATH, MAX_DELAY
+from font_config import FontManager
 from print_thread import PrintThread
 from utils import list_printers_to_json
 
-from api import APIEndpoints
+from .custom_widgets import CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget
+from .zpl_preview import LabelViewer
 
-__all__ = ['MainWindow']
+__all__ = ["MainWindow"]
 
-json_printers = json.loads(list_printers_to_json());
+json_printers = json.loads(list_printers_to_json())
 
 
 class MainWindow(QWidget):
@@ -30,7 +42,7 @@ class MainWindow(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.settings = QSettings('Tecneu', 'TecneuTagger')
+        self.settings = QSettings("Tecneu", "TecneuTagger")
         self.api = APIEndpoints()
 
         self.print_thread = None
@@ -71,17 +83,17 @@ class MainWindow(QWidget):
 
     def loadSettings(self):
         # Cargar el nombre de la impresora seleccionada
-        printer_name = self.settings.value('printer_name', '')
+        printer_name = self.settings.value("printer_name", "")
         index = self.printer_selector.findText(printer_name)
         if index != -1:
             self.printer_selector.setCurrentIndex(index)
 
         # Cargar el último valor del delay slider
-        delay_value = self.settings.value('delay_value', 25, type=int)
+        delay_value = self.settings.value("delay_value", 25, type=int)
         self.delay_slider.setValue(delay_value)
 
     def saveSliderValue(self):
-        self.settings.setValue('delay_value', self.delay_slider.value())
+        self.settings.setValue("delay_value", self.delay_slider.value())
 
     def show_error_message(self, message):
         QMessageBox.critical(self, "Error", message)
@@ -95,14 +107,14 @@ class MainWindow(QWidget):
         robotoRegularFont = None
         digitalBoldFont = None
         mystericFont = None
-        if fonts and 'robotoBoldFont' in fonts:
-            robotoBoldFont = fonts['robotoBoldFont']
-        if fonts and 'robotoRegularFont' in fonts:
-            robotoRegularFont = fonts['robotoRegularFont']
-        if fonts and 'digitalBoldFont' in fonts:
-            digitalBoldFont = fonts['digitalBoldFont']
-        if fonts and 'mystericFont' in fonts:
-            mystericFont = fonts['mystericFont']
+        if fonts and "robotoBoldFont" in fonts:
+            robotoBoldFont = fonts["robotoBoldFont"]
+        if fonts and "robotoRegularFont" in fonts:
+            robotoRegularFont = fonts["robotoRegularFont"]
+        if fonts and "digitalBoldFont" in fonts:
+            digitalBoldFont = fonts["digitalBoldFont"]
+        if fonts and "mystericFont" in fonts:
+            mystericFont = fonts["mystericFont"]
 
         self.setWindowTitle("Tecneu - Tagger")
         self.setGeometry(800, 100, 850, 400)  # x, y, width, height
@@ -130,14 +142,14 @@ class MainWindow(QWidget):
         self.delay_slider.valueChanged.connect(self.update_slider_label)
         self.delay_slider.sliderReleased.connect(self.apply_delay_change)
 
-        self.delay_slider.setStyleSheet("""
+        self.delay_slider.setStyleSheet(
+            """
             QSlider::groove:horizontal {
                 border: 1px solid #bbb;
                 background: white;
                 height: 6px;
                 border-radius: 4px;
             }
-        
             QSlider::handle:horizontal {
                 background: #51acff;
                 border: 6px solid #6b6b6b;
@@ -146,21 +158,18 @@ class MainWindow(QWidget):
                 margin: -6px 0px;
                 border-radius: 9px;
             }
-        
             QSlider::handle:horizontal:hover {
                 border: 2px solid #6b6b6b;
                 width: 22px;
                 height: 22px;
                 border-radius: 8px;
             }
-            
             QSlider::handle:horizontal:pressed {
                 border: 8px solid #6b6b6b;
                 width: 8px;
                 height: 8px;
                 border-radius: 9px;
             }
-        
             QSlider::sub-page:horizontal {
                 /* background: transparent;
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #66e, stop:1 #bbf);
@@ -170,19 +179,18 @@ class MainWindow(QWidget):
                 height: 6px;
                 border-radius: 4px;
             }
-        
             QSlider::add-page:horizontal {
                 background: transparent;
                 border: none;
                 height: 6px;
                 border-radius: 4px;
             }
-        """)
+        """
+        )
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
-        turtle_pixmap = (QPixmap(os.fspath(BASE_ASSETS_PATH / 'icons' / 'turtle-du.svg'))
-                         .scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        turtle_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "turtle-du.svg")).scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.turtle_icon_label.setPixmap(turtle_pixmap)
         self.delay_slider_layout.addWidget(self.turtle_icon_label)
 
@@ -190,20 +198,21 @@ class MainWindow(QWidget):
 
         # Icono de conejo para el lado rápido
         self.rabbit_icon_label = QLabel()
-        rabbit_pixmap = (QPixmap(os.fspath(BASE_ASSETS_PATH / 'icons' / 'rabbit-running-du.svg'))
-                         .scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        rabbit_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "rabbit-running-du.svg")).scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
 
         self.slider_label_frame = QFrame(self)
         # border: 1px solid gray;
-        self.slider_label_frame.setStyleSheet("""
+        self.slider_label_frame.setStyleSheet(
+            """
             background-color: white;
             border: 1px solid gray;
             border-radius: 5px;
             padding: 0px;
             margin: 0px;
-        """)
+        """
+        )
         self.slider_label_frame.setLayout(QVBoxLayout())
         self.slider_label_frame.layout().setContentsMargins(0, 0, 0, 0)
         self.slider_label_frame.layout().setAlignment(Qt.AlignCenter)
@@ -211,18 +220,20 @@ class MainWindow(QWidget):
         self.slider_label_frame.raise_()  # Asegura que el frame del slider esté siempre en primer plano
 
         # Asegúrate de llamar a self.raise_slider_labels() después de cualquier operación que afecte la visibilidad
-        self.labelViewer.imageLoaded.connect(
-            self.raise_slider_labels)  # Suponiendo que imageLoaded es una señal emitida después de cargar la imagen
+        self.labelViewer.imageLoaded.connect(self.raise_slider_labels)  # Suponiendo que imageLoaded es una señal emitida después de cargar la imagen
 
         # Slider label setup
         self.slider_label = QLabel(self.slider_label_frame)
-        if robotoRegularFont: self.slider_label.setFont(robotoRegularFont)
-        self.slider_label.setStyleSheet("""
+        if robotoRegularFont:
+            self.slider_label.setFont(robotoRegularFont)
+        self.slider_label.setStyleSheet(
+            """
             background-color: transparent;
             border: none;
             padding: 0px;
             margin: 0px;
-        """)
+        """
+        )
         self.slider_label.setAlignment(Qt.AlignCenter)
         self.slider_label.setWordWrap(True)  # Enable word wrapping
         self.slider_label_frame.layout().addWidget(self.slider_label)
@@ -268,14 +279,17 @@ class MainWindow(QWidget):
 
         self.control_button = QPushButton("Iniciar Impresión")
         self.control_button.clicked.connect(self.control_printing)
-        if robotoBoldFont: self.control_button.setFont(robotoBoldFont)
+        if robotoBoldFont:
+            self.control_button.setFont(robotoBoldFont)
         buttons_layout.addWidget(self.control_button)
 
         self.stop_button = QPushButton("Detener")
         self.stop_button.clicked.connect(self.stop_printing)
-        if robotoBoldFont: self.stop_button.setFont(robotoBoldFont)
+        if robotoBoldFont:
+            self.stop_button.setFont(robotoBoldFont)
         buttons_layout.addWidget(self.stop_button)
-        self.stop_button.setEnabled(False)  # Inicialmente, el botón de pausa está deshabilitado
+        # Inicialmente, el botón de pausa está deshabilitado
+        self.stop_button.setEnabled(False)
 
         # Contenedor y layout para el contador de etiquetas
         counter_frame = QFrame()
@@ -292,7 +306,8 @@ class MainWindow(QWidget):
 
         # Label para el número del contador
         self.count_label = QLabel("0")
-        if robotoBoldFont: self.count_label.setFont(digitalBoldFont)
+        if robotoBoldFont:
+            self.count_label.setFont(digitalBoldFont)
         self.count_label.setStyleSheet("color: yellow; font-size: 65px;")
         self.count_label.setAlignment(Qt.AlignRight)
         counter_layout.addWidget(self.count_label)
@@ -309,7 +324,8 @@ class MainWindow(QWidget):
         control_layout.addLayout(buttons_and_counter_layout)
 
         self.status_label = QLabel("")
-        if mystericFont: self.status_label.setFont(mystericFont)
+        if mystericFont:
+            self.status_label.setFont(mystericFont)
         self.status_label.setStyleSheet("color: #F27405; font-size: 17px;")
         control_layout.addWidget(self.status_label)
 
@@ -326,14 +342,14 @@ class MainWindow(QWidget):
 
         # Botón de búsqueda con icono de lupa
         self.search_button = QPushButton()
-        search_icon = QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'search.svg'))  # Asegúrate de tener el ícono
+        search_icon = QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "search.svg"))  # Asegúrate de tener el ícono
         self.search_button.setIcon(search_icon)
         self.search_button.setFixedSize(30, 30)
         self.search_button.clicked.connect(self.execute_search)  # Buscar al hacer clic en la lupa
 
         # Botón para pegar del portapapeles
         self.paste_search_button = QPushButton()
-        paste_icon = QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'paste.svg'))
+        paste_icon = QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "paste.svg"))
         self.paste_search_button.setIcon(paste_icon)
         self.paste_search_button.setFixedSize(30, 30)
         self.paste_search_button.clicked.connect(self.paste_and_search)  # Buscar al pegar
@@ -356,25 +372,29 @@ class MainWindow(QWidget):
         self.printer_selector = QComboBox()
         self.printer_selector.setView(QListView())  # Asegúrate de importar QListView
         self.printer_selector.setMinimumHeight(30)
-        self.printer_selector.setStyleSheet("""
+        self.printer_selector.setStyleSheet(
+            """
         QListView::item{
             padding: 5px 10px;
         }
-        """)
+        """
+        )
 
         self.printer_selector.currentIndexChanged.connect(self.update_printer_icon)
         model = QStandardItemModel()
 
         # Crea el ítem "Seleccione una impresora" y hazlo no seleccionable
-        defaultItem = QStandardItem(QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'printer.svg')),
-                                    "Seleccione una impresora")
+        defaultItem = QStandardItem(
+            QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "printer.svg")),
+            "Seleccione una impresora",
+        )
         defaultItem.setEnabled(False)  # Hace que el ítem sea no seleccionable
         model.appendRow(defaultItem)
 
         # Filtra y agrega los nombres de las impresoras al menú desplegable
         for printer in json_printers:
             if printer["EnableBIDI"] and printer["IsThermal"]:
-                item = QStandardItem(printer['Name'])
+                item = QStandardItem(printer["Name"])
                 model.appendRow(item)
 
         self.printer_selector.setModel(model)
@@ -388,8 +408,9 @@ class MainWindow(QWidget):
         # Botón para borrar el contenido de QTextEdit
         self.clear_zpl_button = QPushButton("Borrar ZPL")
         # Establecer el ícono en el botón
-        self.clear_zpl_button.setIcon(QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'delete-left.svg')))
-        self.clear_zpl_button.setStyleSheet("""
+        self.clear_zpl_button.setIcon(QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "delete-left.svg")))
+        self.clear_zpl_button.setStyleSheet(
+            """
             QPushButton {
                 text-align: left;
                 padding: 5px 10px;
@@ -398,7 +419,8 @@ class MainWindow(QWidget):
                 position: absolute;
                 left: 50px;  /* Alinear el ícono a la derecha */
             }
-        """)
+        """
+        )
         # Establecer el tamaño del ícono (opcional)
         self.clear_zpl_button.setIconSize(QSize(20, 20))
         self.clear_zpl_button.clicked.connect(self.reset_all)
@@ -406,13 +428,15 @@ class MainWindow(QWidget):
 
         # Botón para pegar desde el portapapeles
         self.paste_zpl_button = QPushButton()
-        self.paste_zpl_button.setIcon(QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'paste.svg')))
-        self.paste_zpl_button.setStyleSheet("""
+        self.paste_zpl_button.setIcon(QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "paste.svg")))
+        self.paste_zpl_button.setStyleSheet(
+            """
             QPushButton {
                 padding: 5px;
                 icon-size: 20px;
             }
-        """)
+        """
+        )
         self.paste_zpl_button.clicked.connect(self.paste_from_clipboard)
         zpl_buttons_layout.addWidget(self.paste_zpl_button)
 
@@ -435,16 +459,23 @@ class MainWindow(QWidget):
         self.search_bar.clear()
         self.carousel.hide_carousel()
 
-
     def execute_search(self):
         """Executes a search using the text from the search bar."""
         search_text = self.search_bar.text().strip()
         if not search_text:
-            self.set_status_message("Por favor ingresa un ID o código para buscar.", duration=5, countdown=True, color='#BD2A2E')
+            self.set_status_message(
+                "Por favor ingresa un ID o código para buscar.",
+                duration=5,
+                countdown=True,
+                color="#BD2A2E",
+            )
             return
 
         copies_str = self.copies_entry.text()
-        query_params = {"label_size": "4_x_2_5", "qty": copies_str if copies_str.isdigit() else "0"}
+        query_params = {
+            "label_size": "4_x_2_5",
+            "qty": copies_str if copies_str.isdigit() else "0",
+        }
 
         # Consulta a la API
         item = self.api.get_mercadolibre_item(search_text, query_params)
@@ -452,9 +483,14 @@ class MainWindow(QWidget):
         if item and "label" in item:
             self.zpl_textedit.setPlainText(item["label"])  # Pega el ZPL en el campo
             self.latest_item_data = item  # Guarda la respuesta completa para otras funciones
-            self.set_status_message("Etiqueta cargada correctamente.", duration=3, color='#28A745')
+            self.set_status_message("Etiqueta cargada correctamente.", duration=3, color="#28A745")
         else:
-            self.set_status_message("No se encontró ningún resultado.", duration=5, countdown=True, color='#BD2A2E')
+            self.set_status_message(
+                "No se encontró ningún resultado.",
+                duration=5,
+                countdown=True,
+                color="#BD2A2E",
+            )
 
     def paste_and_search(self):
         """Pega el contenido del portapapeles y ejecuta la búsqueda."""
@@ -464,7 +500,12 @@ class MainWindow(QWidget):
             self.search_bar.setText(clipboard_text)
             self.execute_search()
         else:
-            self.set_status_message("El portapapeles está vacío.", duration=5, countdown=True, color='#BD2A2E')
+            self.set_status_message(
+                "El portapapeles está vacío.",
+                duration=5,
+                countdown=True,
+                color="#BD2A2E",
+            )
 
     # Asegúrate de llamar a esta función después de operaciones que cambian la visibilidad o el orden de los widgets
     def raise_slider_labels(self):
@@ -531,8 +572,8 @@ class MainWindow(QWidget):
         clipboard = QApplication.clipboard()
         # Elimina espacios en blanco y comillas dobles al principio y al final
         text = clipboard.text().strip().strip('"')
-        if text == '':
-            self.set_status_message("No hay texto para pegar.", duration=5, countdown=True, color='#BD2A2E')
+        if text == "":
+            self.set_status_message("No hay texto para pegar.", duration=5, countdown=True, color="#BD2A2E")
             return
 
         self.zpl_textedit.setPlainText(text)  # Pegar como texto plano
@@ -544,8 +585,7 @@ class MainWindow(QWidget):
 
         # Establecer el ícono solo en el ítem seleccionado
         if index != 0:  # Asumiendo que el índice 0 es "Seleccione una impresora"
-            (self.printer_selector
-             .setItemIcon(index, QIcon(os.fspath(BASE_ASSETS_PATH / 'icons' / 'printer.svg'))))
+            (self.printer_selector.setItemIcon(index, QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "printer.svg"))))
 
     def increment(self):
         self.copies_entry.incrementValue()
@@ -578,8 +618,7 @@ class MainWindow(QWidget):
         self.slider_label.setText(str(value))
         slider_pos = self.delay_slider.pos()
         slider_length = self.delay_slider.width()
-        slider_value = (value - self.delay_slider.minimum()) / (
-                self.delay_slider.maximum() - self.delay_slider.minimum())
+        slider_value = (value - self.delay_slider.minimum()) / (self.delay_slider.maximum() - self.delay_slider.minimum())
         slider_offset = int(slider_length * slider_value - self.slider_label_frame.width() / 2)
         self.slider_label_frame.move(slider_pos.x() + slider_offset, slider_pos.y() - 40)
         self.slider_label_frame.show()
@@ -597,19 +636,24 @@ class MainWindow(QWidget):
         zpl_text = self.zpl_textedit.toPlainText().strip()
         is_valid_zpl = self.is_valid_zpl(zpl_text)
 
-        if zpl_text == '' or not is_valid_zpl:
-            self.copies_entry.setValue('')
-        if zpl_text != '' and not is_valid_zpl:
-            self.set_status_message("ZPL ingresado no es valido", duration=5, countdown=True, color='#BD2A2E')
+        if zpl_text == "" or not is_valid_zpl:
+            self.copies_entry.setValue("")
+        if zpl_text != "" and not is_valid_zpl:
+            self.set_status_message(
+                "ZPL ingresado no es valido",
+                duration=5,
+                countdown=True,
+                color="#BD2A2E",
+            )
 
-        pq_index = zpl_text.find('^PQ')
+        pq_index = zpl_text.find("^PQ")
         if is_valid_zpl:
             # Encuentra el número de copias en el ZPL
             start_index = pq_index + 3
             new_zpl_text = zpl_text
 
             if pq_index != -1:
-                end_index = zpl_text.find(',', start_index)
+                end_index = zpl_text.find(",", start_index)
                 if end_index == -1:
                     end_index = len(zpl_text)
 
@@ -619,11 +663,14 @@ class MainWindow(QWidget):
 
                 new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
 
-            print(f"BARCODE ========== {self.extract_barcode(zpl_text)}");
+            print(f"BARCODE ========== {self.extract_barcode(zpl_text)}")
             # Obtener informacion del item
             inventory_id = self.extract_barcode(zpl_text)
             print(f"COPIES_STR: {copies_str if copies_str.isdigit() else '0'}")
-            query_params = {"label_size": "4_x_2_5", "qty": copies_str if copies_str.isdigit() else "0"}
+            query_params = {
+                "label_size": "4_x_2_5",
+                "qty": copies_str if copies_str.isdigit() else "0",
+            }
             item = self.api.get_mercadolibre_item(inventory_id, query_params)
             if item:
                 # print("Retrieved item:", item)
@@ -638,10 +685,19 @@ class MainWindow(QWidget):
                     self.carousel.set_images(image_urls)
                     self.carousel.show_carousel(parent_geometry=self.geometry())
                 else:
-                    self.set_status_message("No se encontraron imágenes del producto", duration=5, countdown=True,
-                                            color='#BD2A2E')
+                    self.set_status_message(
+                        "No se encontraron imágenes del producto",
+                        duration=5,
+                        countdown=True,
+                        color="#BD2A2E",
+                    )
             else:
-                self.set_status_message("Fallo el obtener el item", duration=5, countdown=True, color='#BD2A2E')
+                self.set_status_message(
+                    "Fallo el obtener el item",
+                    duration=5,
+                    countdown=True,
+                    color="#BD2A2E",
+                )
 
             # print("LABEL PREVIEW")
             # print(new_zpl_text)
@@ -677,13 +733,13 @@ class MainWindow(QWidget):
         self.updating_zpl = True
         copies_text = self.copies_entry.text()
 
-        if copies_text == '':
+        if copies_text == "":
             zpl_text = self.zpl_textedit.toPlainText().strip()
-            pq_index = zpl_text.find('^PQ')
+            pq_index = zpl_text.find("^PQ")
             if pq_index != -1 and self.is_valid_zpl(zpl_text):
                 # Reemplazar el número de copias existente
                 start_index = pq_index + 3
-                end_index = zpl_text.find(',', start_index)
+                end_index = zpl_text.find(",", start_index)
                 if end_index == -1:
                     end_index = len(zpl_text)
                 new_zpl_text = zpl_text[:start_index] + zpl_text[end_index:]
@@ -693,11 +749,11 @@ class MainWindow(QWidget):
             new_copies = int(copies_text)
             zpl_text = self.zpl_textedit.toPlainText().strip()
             is_valid_zpl = self.is_valid_zpl(zpl_text)
-            pq_index = zpl_text.find('^PQ')
+            pq_index = zpl_text.find("^PQ")
             if pq_index != -1 and is_valid_zpl:
                 # Reemplazar el número de copias existente
                 start_index = pq_index + 3
-                end_index = zpl_text.find(',', start_index)
+                end_index = zpl_text.find(",", start_index)
                 if end_index == -1:
                     end_index = len(zpl_text)
                 new_zpl_text = zpl_text[:start_index] + str(new_copies) + zpl_text[end_index:]
@@ -711,7 +767,7 @@ class MainWindow(QWidget):
     def on_printer_selected(self, name):
         if name != "Seleccione una impresora":
             self.selected_printer_name = name
-            self.settings.setValue('printer_name', self.printer_selector.currentText())
+            self.settings.setValue("printer_name", self.printer_selector.currentText())
             self.clear_focus()
 
     def clear_focus(self):
@@ -793,19 +849,19 @@ class MainWindow(QWidget):
             # self.control_button.setText("Reanudar")
             # self.set_status_message("Impresión pausada")
 
-    def pause_printing(self):
-        if self.print_thread:
-            # self.is_paused = True
-            self.control_button.setText("Reanudar")
-            self.set_status_message("Impresión pausada")
-        return
+    # def pause_printing(self):
+    #     if self.print_thread:
+    #         # self.is_paused = True
+    #         self.control_button.setText("Reanudar")
+    #         self.set_status_message("Impresión pausada")
+    #     return
 
     def is_valid_zpl(self, zpl_text):
         """
         Verifica si el texto proporcionado es un ZPL válido.
         Esta función es básica y podría necesitar una lógica más compleja para validar ZPL de manera exhaustiva.
         """
-        if re.search(r'^\^XA.*\^XZ$', zpl_text, re.DOTALL):
+        if re.search(r"^\^XA.*\^XZ$", zpl_text, re.DOTALL):
             return True
         return False
 
@@ -865,8 +921,11 @@ class MainWindow(QWidget):
 
         # Verificar que se haya seleccionado una impresora
         if not self.selected_printer_name or self.selected_printer_name == "Seleccione una impresora":
-            QMessageBox.warning(self, "Impresora no seleccionada",
-                                "Por favor, selecciona una impresora antes de imprimir.")
+            QMessageBox.warning(
+                self,
+                "Impresora no seleccionada",
+                "Por favor, selecciona una impresora antes de imprimir.",
+            )
             return
 
         # Validar que el texto ZPL sea válido
@@ -895,7 +954,7 @@ class MainWindow(QWidget):
             # Si el hilo ya existe y está ejecutándose, actualiza las propiedades y continúa
             self.print_thread.set_copies_and_zpl(copies, zpl_text)
 
-        print('initiated_by_double_click: ', initiated_by_double_click)
+        print("initiated_by_double_click: ", initiated_by_double_click)
         self.print_thread.initiated_by_double_click = initiated_by_double_click  # Set the flag directly here
 
         self.set_status_message("")
@@ -921,16 +980,17 @@ class MainWindow(QWidget):
         # File "C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\src\ui\main_window.py", line 800, in printing_finished
         # self.print_thread.stopped = False
         # AttributeError: 'NoneType' object has no attribute 'stopped'
-        if self.print_thread: self.print_thread.stopped = False
+        if self.print_thread:
+            self.print_thread.stopped = False
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
-        self.copies_entry.setValue('0')
+        self.copies_entry.setValue("0")
 
     def closeEvent(self, event):
         # Guardar el nombre de la impresora seleccionada
-        self.settings.setValue('printer_name', self.printer_selector.currentText())
+        self.settings.setValue("printer_name", self.printer_selector.currentText())
 
         # Guardar el último valor del delay slider
-        self.settings.setValue('delay_value', self.delay_slider.value())
+        self.settings.setValue("delay_value", self.delay_slider.value())
 
         super().closeEvent(event)
 
@@ -939,8 +999,12 @@ class MainWindow(QWidget):
         if self.carousel.is_visible:
             self.carousel.hide_carousel()
         else:
-            self.carousel.set_images(["https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg",
-                                      "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg"])
+            self.carousel.set_images(
+                [
+                    "https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg",
+                    "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg",
+                ]
+            )
             # self.carousel.set_images([
             #     "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg",
             #     "https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg"

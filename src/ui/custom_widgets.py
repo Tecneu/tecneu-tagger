@@ -1,16 +1,15 @@
 import os
-from PyQt5.QtWidgets import QTextEdit, QWidget, QPushButton, QLineEdit, QHBoxLayout, QVBoxLayout, QFrame, QLabel, \
-    QScrollArea, QSpacerItem, QSizePolicy, QApplication
-from PyQt5.QtGui import QIntValidator, QPixmap, QColor, QPalette, QPen, QPainter, QBrush, QMovie
-from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QRect, QTimer, QUrl
-from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
-from PIL import Image
-from config import BASE_ASSETS_PATH
 
+from PyQt5.QtCore import QPoint, QRect, Qt, QUrl, pyqtSignal
+from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget
+
+from config import BASE_ASSETS_PATH
 from font_config import FontManager
 
 # ui/custom_widgets.py
-__all__ = ['CustomTextEdit', 'SpinBoxWidget', 'CustomSearchBar']
+__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar"]
 
 QApplication.processEvents()
 
@@ -21,8 +20,8 @@ class CustomTextEdit(QTextEdit):
             text = source.text()
             # Elimina espacios en blanco y comillas dobles al principio y al final
             text = text.strip().strip('"')
-            (super(CustomTextEdit, self)
-             .insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+            (super(CustomTextEdit, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+
 
 class CustomSearchBar(QLineEdit):
     def insertFromMimeData(self, source):
@@ -32,8 +31,8 @@ class CustomSearchBar(QLineEdit):
             text = source.text()
             # Elimina espacios en blanco y comillas dobles al principio y al final
             text = text.strip().strip('"')
-            (super(CustomSearchBar, self)
-             .insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+            (super(CustomSearchBar, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+
 
 class SpinBoxWidget(QWidget):
     valueChanged = pyqtSignal(int)  # Definir una nueva señal que pasa el valor actual
@@ -43,8 +42,8 @@ class SpinBoxWidget(QWidget):
 
         fonts = FontManager.get_fonts()
         robotoRegularFont = None
-        if fonts and 'robotoRegularFont' in fonts:
-            robotoRegularFont = fonts['robotoRegularFont']
+        if fonts and "robotoRegularFont" in fonts:
+            robotoRegularFont = fonts["robotoRegularFont"]
 
         # Marco contenedor con tamaño fijo
         self.frame = QFrame(self)
@@ -115,7 +114,7 @@ class SpinBoxWidget(QWidget):
         value = self.lineEdit.text()
         if value.isdigit():
             value = int(value)
-        elif value != '':
+        elif value != "":
             return
 
         value = int(value or 0)
@@ -126,7 +125,7 @@ class SpinBoxWidget(QWidget):
         value = self.lineEdit.text()
         if value.isdigit():
             value = int(value)
-        elif value != '':
+        elif value != "":
             return
 
         value = int(value or 0)
@@ -208,11 +207,11 @@ class ImageCarousel(QWidget):
         """Configures the geometry and appearance of the carousel."""
         self.setGeometryWithBackground(
             x=parent_geometry.x(),
-            y=parent_geometry.y() + parent_geometry.height(), # Se posiciona justo debajo de la ventana principal
-            width=parent_geometry.width(), # Ajusta el ancho al de la ventana principal
-            height=150, # Altura fija del carrusel
+            y=parent_geometry.y() + parent_geometry.height(),  # Se posiciona justo debajo de la ventana principal
+            width=parent_geometry.width(),  # Ajusta el ancho al de la ventana principal
+            height=150,  # Altura fija del carrusel
             background_color="#000000",  # Fondo negro
-            opacity=0.65  # 65% de opacidad
+            opacity=0.65,  # 65% de opacidad
         )
 
     def set_images(self, images):
@@ -228,17 +227,18 @@ class ImageCarousel(QWidget):
             label.setFixedSize(100, 100)
             # label.setStyleSheet("border: 1px solid gray; position: relative; background-color: white;")
             # position: relative;
-            label.setStyleSheet("""
+            label.setStyleSheet(
+                """
                 QLabel {
                     border: 1px solid gray;
                     background-color: white; /* Optional for better visibility */
                     margin: 0;  /* Reset internal margins */
                 }
-            """)
+            """
+            )
 
             # Show spinner while loading
-            spinner = QMovie(os.fspath(
-                BASE_ASSETS_PATH / 'icons' / 'spinner.gif'))  # Replace with the path to your local spinner GIF
+            spinner = QMovie(os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif"))  # Replace with the path to your local spinner GIF
             label.setMovie(spinner)
             spinner.start()
 
@@ -249,8 +249,7 @@ class ImageCarousel(QWidget):
             print(f"Sending request to {img_url}")
 
             reply = self.network_manager.get(request)
-            reply.finished.connect(
-                lambda r=reply, lbl=label, sp=spinner, url=img_url: self.handle_reply(r, lbl, sp, url))
+            reply.finished.connect(lambda r=reply, lbl=label, sp=spinner, url=img_url: self.handle_reply(r, lbl, sp, url))
 
         print("All requests sent.")
 
@@ -338,7 +337,10 @@ class ImageCarousel(QWidget):
         if self.hover_zoom_window:
             local_pos = event.pos()
             label_width, label_height = label.width(), label.height()
-            pixmap_width, pixmap_height = label.pixmap().size().width(), label.pixmap().size().height()
+            pixmap_width, pixmap_height = (
+                label.pixmap().size().width(),
+                label.pixmap().size().height(),
+            )
 
             # Correct proportional mapping based on pixmap scaling
             scale_x = pixmap_width / label_width
@@ -362,7 +364,7 @@ class ImageCarousel(QWidget):
             self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y), scale_x, scale_y)
 
             # Save original pixmap if not already saved
-            if not hasattr(label, '_original_pixmap'):
+            if not hasattr(label, "_original_pixmap"):
                 label._original_pixmap = label.pixmap().copy()
 
             # Draw grid on the original image
@@ -454,9 +456,8 @@ class HoverZoomWindow(QWidget):
             round(max(0, pos.x()) * self.scale_x),
             round(max(0, pos.y()) * self.scale_y),
             zoom_size,
-            zoom_size
+            zoom_size,
         )
 
-        zoomed_pixmap = self.pixmap.copy(source_rect).scaled(self.w, self.h, Qt.KeepAspectRatio,
-                                                             Qt.SmoothTransformation)
+        zoomed_pixmap = self.pixmap.copy(source_rect).scaled(self.w, self.h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.zoom_label.setPixmap(zoomed_pixmap)

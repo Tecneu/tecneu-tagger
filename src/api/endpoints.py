@@ -1,4 +1,5 @@
-from api import HTTPInterceptor
+from .http_interceptor import HTTPInterceptor
+
 
 class APIEndpoints:
     def __init__(self):

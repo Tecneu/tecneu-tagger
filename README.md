@@ -24,12 +24,6 @@
    - Instalar dependencias `pipenv install` o para uso en Producción (Entornos Estables) instala versiones exactas según Pipfile.lock`pipenv install --deploy --ignore-pipfile`.
    - Ejecutar main.py: `python src/main.py`.
    - Salir del entorno virtual: `exit`.
-   
-[//]: # (5. **Instala dependencias** )
-
-[//]: # (   ```bash)
-
-[//]: # (   pip install -r requirements.txt)
 
 ## Otros
 
@@ -60,3 +54,38 @@
 4. **Crear ejecutable**
     - Con instrucciones de .spec (Recomendable): `pyinstaller main.spec`
     - Ejecutable inline con icono: `pyinstaller --onefile --windowed --icon=assets/logos/tecneu-logo.ico main.spec`
+
+## Scripts de Desarrollo
+
+El proyecto define algunos **scripts** en él `Pipfile` para simplificar tareas comunes:
+
+1. **Formatear código** (`format`):
+    - Ejecuta [Black](https://black.readthedocs.io/en/stable/) e [isort](https://pycqa.github.io/isort/) para un formateo de código consistente.
+    - Comando:
+      ```bash
+      pipenv run format
+      ```
+    - Este comando hará:
+        - `black .` (formateo)
+        - `isort .` (ordenar imports)
+
+2. **Lint** (`lint`):
+    - Usa [Flake8](https://flake8.pycqa.org/en/latest/) y [Pylint](https://pylint.pycqa.org/en/latest/) para revisar estilo y convenciones de código.
+    - Comando:
+      ```bash
+      pipenv run lint
+      ```
+    - Este comando hará:
+        - `flake8 .` (detección de errores, estilo, etc.)
+        - `pylint .` (análisis detallado y puntuación de código)
+
+3. **Chequeo de tipos** (`typecheck`):
+    - Corre [mypy](http://mypy-lang.org/) para verificar anotaciones y consistencia de tipos en el proyecto.
+    - Comando:
+      ```bash
+      pipenv run typecheck
+      ```
+    - Si detecta inconsistencias de tipos, mypy mostrará los errores en la consola.
+
+> **Nota**: En Windows, los scripts usan `cmd /c "..."` para poder encadenar comandos con `&&`.
+> En caso de que tengas problemas con `&&` en **PowerShell**, podrías separar cada herramienta en distintos scripts (por ejemplo, `format_black` y `format_isort`) o usar un archivo `.bat`.

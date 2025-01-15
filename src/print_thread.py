@@ -1,20 +1,22 @@
-from PyQt5.QtCore import QThread, pyqtSignal
-import re
 import math
-import time
+import re
 import threading
+
+from PyQt5.QtCore import QThread, pyqtSignal
 from zebra import Zebra
+
 from config import MAX_DELAY
 from utils import normalize_zpl
 
 # print_thread.py
-__all__ = ['PrintThread']
+__all__ = ["PrintThread"]
 
 
 class PrintThread(QThread):
     """
     Clase para gestionar la impresión en un hilo separado.
     """
+
     update_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
     error_signal = pyqtSignal(str)
@@ -85,20 +87,20 @@ class PrintThread(QThread):
 
         if self.delay == MAX_DELAY:  # Supongamos que MAX_DELAY es el valor máximo del slider
             # Modifica ZPL para imprimir todas las etiquetas restantes
-            all_copies_zpl = re.sub(r'\^PQ[0-9]+', f'^PQ{self.copies}', normalized_zpl, flags=re.IGNORECASE)
+            all_copies_zpl = re.sub(r"\^PQ[0-9]+", f"^PQ{self.copies}", normalized_zpl, flags=re.IGNORECASE)
             zpl_to_print = all_copies_zpl
             with self.lock:
                 self.copies = 0  # Asegurar la operación atómica sobre self.copies
         else:
             # Modifica ZPL para imprimir una copia a la vez
-            single_copy_zpl = re.sub(r'\^PQ[0-9]+', '^PQ1', normalized_zpl, flags=re.IGNORECASE)
+            single_copy_zpl = re.sub(r"\^PQ[0-9]+", "^PQ1", normalized_zpl, flags=re.IGNORECASE)
             zpl_to_print = single_copy_zpl
             with self.lock:
                 self.copies -= 1  # Asegurar la operación atómica sobre self.copies
 
         try:
             self.z.output(zpl_to_print)
-            print(f"Impresión realizada")
+            print("Impresión realizada")
         except Exception as e:
             self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
 
@@ -183,9 +185,3 @@ class PrintThread(QThread):
         if not self.pause:  # Si se está reanudando la impresión
             with self.condition:
                 self.condition.notify()  # Despierta el hilo si estaba esperando debido a una pausa
-
-    def stop_printing(self):
-        """
-        Método para detener la impresión.
-        """
-        self.stopped = True

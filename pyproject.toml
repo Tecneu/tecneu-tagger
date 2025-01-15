@@ -1,0 +1,86 @@
+####################################
+# BLACK
+####################################
+[tool.black]
+# Longitud máxima de línea (por defecto 160)
+line-length = 160
+# Versiones de Python para las que formateará tu código
+target-version = ["py311", "py312"]
+# Opcional: qué archivos/directorios incluir o excluir
+include = '\.pyi?$'
+exclude = '''
+/(
+  \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+####################################
+# ISORT
+####################################
+[tool.isort]
+# Perfil que sincroniza con Black (respeta su line-length, etc.)
+profile = "black"
+# Si no usas "profile", podrías especificar line_length, multi_line_output, etc. manualmente:
+line_length = 160
+# Ejemplo de secciones para separar imports
+known_first_party = ["mi_paquete_interno"]
+known_third_party = ["requests", "django"]
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "FIRSTPARTY",
+    "LOCALFOLDER"
+]
+# Opcionalmente, exclusiones
+skip = ["venv", ".venv"]
+
+####################################
+# FLAKE8
+####################################
+# Requiere plugin: "flake8-pyproject" o similar.
+[tool.flake8]
+max-line-length = 160
+# Ignorar códigos conflictivos con Black
+ignore = ["E203", "W503"]
+exclude = [".git", "__pycache__", ".venv", "build", "dist"]
+
+####################################
+# MYPY
+####################################
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+strict_optional = true
+# strict = true  # si quieres activar todos los chequeos estrictos
+
+####################################
+# PYLINT
+####################################
+# Requiere plugin: "pylint-pyproject" (p.ej. `pip install pylint-pyproject`)
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+    "C0114",  # Missing module docstring
+    "C0115",  # Missing class docstring
+    "C0116",  # Missing function docstring
+]
+
+[tool.pylint.master]
+ignore = [
+    "venv",
+    ".venv",
+    "__pycache__",
+    ".git",
+    "build",
+    "dist"
+]
+
+[tool.pylint.format]
+max-line-length = 160

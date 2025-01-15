@@ -1,0 +1,12 @@
+[MASTER]
+ignore=venv,virtualenvs,.eggs,build,dist
+
+[MESSAGES CONTROL]
+disable=C0114,  # Missing module docstring
+        C0115,  # Missing class docstring
+        C0116,   # Missing function docstring
+        no-name-in-module
+        # (Puedes deshabilitar las reglas que no sean críticas en tu equipo.)
+
+[FORMAT]
+max-line-length=160

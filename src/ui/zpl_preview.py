@@ -1,12 +1,14 @@
 import os
-import requests
 import re
 import threading
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QStackedLayout
-from PyQt5.QtGui import QPixmap, QMovie
-from PyQt5.QtCore import Qt, QTimer, QEvent, pyqtSignal
-from utils import normalize_zpl
+
+import requests
+from PyQt5.QtCore import QEvent, Qt, QTimer, pyqtSignal
+from PyQt5.QtGui import QMovie, QPixmap
+from PyQt5.QtWidgets import QApplication, QLabel, QStackedLayout, QVBoxLayout, QWidget
+
 from config import BASE_ASSETS_PATH
+from utils import normalize_zpl
 
 
 class LabelViewer(QWidget):
@@ -20,7 +22,7 @@ class LabelViewer(QWidget):
         self.last_load_successful = True  # Índica si la última carga fue exitosa
 
     def init_ui(self):
-        self.setWindowTitle('Label Preview')
+        self.setWindowTitle("Label Preview")
         self.setGeometry(100, 100, 400, 300)
 
         # Cambiamos QVBoxLayout a QStackedLayout para que la imagen y el spinner se superpongan
@@ -33,7 +35,7 @@ class LabelViewer(QWidget):
         # Configuración del spinner
         self.spinner = QLabel(self)
         self.spinner.setAlignment(Qt.AlignCenter)
-        self.spinner_movie = QMovie(os.fspath(BASE_ASSETS_PATH / 'icons' / 'spinner.gif'))
+        self.spinner_movie = QMovie(os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif"))
         self.spinner.setMovie(self.spinner_movie)
 
         self.layout.addWidget(self.label)
@@ -80,7 +82,7 @@ class LabelViewer(QWidget):
 
     def _strip_pq(self, zpl_code):
         # Elimina la información de cantidad de copias (PQ) del ZPL para comparaciones
-        return re.sub(r'\^PQ\d+,\d+,\d+,\w', '', zpl_code)
+        return re.sub(r"\^PQ\d+,\d+,\d+,\w", "", zpl_code)
 
     def load_and_display_image(self, zpl_label):
         # Calcular las dimensiones dentro del hilo para evitar condiciones de carrera
@@ -135,7 +137,7 @@ class LabelViewer(QWidget):
 
     def estimate_zpl_dimensions(self, zpl_code):
         max_x = max_y = 0
-        min_x = min_y = float('inf')
+        min_x = min_y = float("inf")
 
         # Coordenadas de inicio
         for match in re.finditer(r"\^FO(\d+),(\d+)", zpl_code):
@@ -175,11 +177,11 @@ class LabelViewer(QWidget):
 def get_image_from_zpl(zpl_label, label_size):
     # print(label_size)
     # print(zpl_label)
-    print_density = '8dpmm'
+    print_density = "8dpmm"
     url = f"http://api.labelary.com/v1/printers/{print_density}/labels/{label_size}/0"
     headers = {
-        'Accept': 'image/png',
-        'Content-Type': 'application/x-www-form-urlencoded'
+        "Accept": "image/png",
+        "Content-Type": "application/x-www-form-urlencoded",
     }
 
     response = requests.post(url, headers=headers, data=zpl_label)

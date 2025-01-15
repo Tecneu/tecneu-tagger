@@ -8,21 +8,21 @@ import sys
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Tecneu Tagger'
-copyright = '2024, Tecneu Technology'
-author = 'Jonathan Hernandez'
-release = '0.1.0 (Python ' + sys.version.split()[0] + ')'
+project = "Tecneu Tagger"
+copyright = "2024, Tecneu Technology"
+author = "Jonathan Hernandez"
+release = "0.1.0 (Python " + sys.version.split()[0] + ")"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = []
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
-html_static_path = ['_static']
+html_theme = "alabaster"
+html_static_path = ["_static"]
