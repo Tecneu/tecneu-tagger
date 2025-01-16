@@ -4,8 +4,8 @@
     - Windows: `pip install pyenv-win`
       - Establecer las siguientes rutas en la variable de entorno Path, en la parte superior, para que asigne prioridad a las versiones de python de pyenv-win sobre cualquier otra previamente instalada en el equipo:
       ```bash
-      C:\Users\%USERPROFILE%\.pyenv\pyenv-win\bin
-      C:\Users\%USERPROFILE%\.pyenv\pyenv-win\shims
+      %USERPROFILE%\.pyenv\pyenv-win\bin
+      %USERPROFILE%\.pyenv\pyenv-win\shims
     - Linux/MacOS: Seguir instrucciones de https://github.com/pyenv/pyenv
 
 2. **Configura Pyenv**
