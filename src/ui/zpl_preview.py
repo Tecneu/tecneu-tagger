@@ -3,7 +3,7 @@ import re
 import threading
 
 import requests
-from PyQt5.QtCore import QEvent, Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import QEvent, Qt, QTimer, pyqtSignal, QSize
 from PyQt5.QtGui import QMovie, QPixmap
 from PyQt5.QtWidgets import QApplication, QLabel, QStackedLayout, QVBoxLayout, QWidget
 
@@ -36,6 +36,7 @@ class LabelViewer(QWidget):
         self.spinner = QLabel(self)
         self.spinner.setAlignment(Qt.AlignCenter)
         self.spinner_movie = QMovie(os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif"))
+        self.spinner_movie.setScaledSize(QSize(120, 120))
         self.spinner.setMovie(self.spinner_movie)
 
         self.layout.addWidget(self.label)

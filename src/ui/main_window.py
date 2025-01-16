@@ -2,8 +2,8 @@ import json
 import os
 import re
 
-from PyQt5.QtCore import QSettings, QSize, Qt, QTimer
-from PyQt5.QtGui import QColor, QIcon, QPixmap, QStandardItem, QStandardItemModel
+from PyQt5.QtCore import QSettings, QSize, Qt, QThreadPool, QTimer
+from PyQt5.QtGui import QColor, QIcon, QMovie, QPixmap, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import (
     QApplication,
     QComboBox,
@@ -26,6 +26,7 @@ from config import BASE_ASSETS_PATH, MAX_DELAY
 from font_config import FontManager
 from print_thread import PrintThread
 from utils import list_printers_to_json
+from worker import SearchWorker
 
 from .custom_widgets import CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget
 from .zpl_preview import LabelViewer
@@ -44,6 +45,12 @@ class MainWindow(QWidget):
         super().__init__()
         self.settings = QSettings("Tecneu", "TecneuTagger")
         self.api = APIEndpoints()
+
+        # Para gestionar tareas en segundo plano
+        self.threadpool = QThreadPool()
+
+        # Crea un overlay pero no lo muestres aún
+        self.loading_overlay = None
 
         self.print_thread = None
         self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
@@ -97,6 +104,43 @@ class MainWindow(QWidget):
 
     def show_error_message(self, message):
         QMessageBox.critical(self, "Error", message)
+
+    def show_loading_overlay(self):
+        """Muestra un overlay translúcido con un spinner en el centro."""
+        if self.loading_overlay is not None:
+            return  # Ya está mostrado
+
+        # 1) Crear el overlay "flotante" encima de MainWindow
+        self.loading_overlay = QFrame(self)
+        self.loading_overlay.setStyleSheet("background-color: rgba(0, 0, 0, 125);")  # ~50% opacidad
+        self.loading_overlay.setGeometry(self.rect())  # Cubre toda la ventana
+
+        # 2) Crear un layout para centrar el spinner
+        layout = QVBoxLayout(self.loading_overlay)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignCenter)
+
+        # 3) Crear un QLabel con el QMovie (spinner.gif)
+        self.spinner_label = QLabel()
+        self.spinner_label.setStyleSheet("background-color: transparent; border: none;")
+        # self.spinner_label.setAttribute(Qt.WA_TranslucentBackground)
+        spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner_overlay.gif")
+        self.spinner_movie = QMovie(spinner_path)
+        self.spinner_movie.setScaledSize(QSize(180, 180))
+        self.spinner_label.setMovie(self.spinner_movie)
+
+        layout.addWidget(self.spinner_label, alignment=Qt.AlignCenter)
+
+        # Mostrar
+        self.loading_overlay.show()
+        self.spinner_movie.start()
+
+    def hide_loading_overlay(self):
+        """Oculta el overlay con el spinner."""
+        if self.loading_overlay is not None:
+            self.loading_overlay.hide()
+            self.spinner_movie.stop()
+            self.loading_overlay = None
 
     def init_ui(self):
         """
@@ -339,6 +383,8 @@ class MainWindow(QWidget):
         self.search_bar.setPlaceholderText("Buscar por Inventory_id...")
         self.search_bar.setFixedHeight(30)
         self.search_bar.returnPressed.connect(self.execute_search)  # Buscar al presionar Enter
+        # Conectamos la señal 'pasted' al método 'execute_search'
+        self.search_bar.paste_event_filter.pasted.connect(self.execute_search)
 
         # Botón de búsqueda con icono de lupa
         self.search_button = QPushButton()
@@ -423,7 +469,7 @@ class MainWindow(QWidget):
         )
         # Establecer el tamaño del ícono (opcional)
         self.clear_zpl_button.setIconSize(QSize(20, 20))
-        self.clear_zpl_button.clicked.connect(self.reset_all)
+        self.clear_zpl_button.clicked.connect(lambda: self.reset_all(True))
         zpl_buttons_layout.addWidget(self.clear_zpl_button)
 
         # Botón para pegar desde el portapapeles
@@ -446,18 +492,15 @@ class MainWindow(QWidget):
         main_layout.addLayout(control_layout)
         main_layout.addLayout(zpl_layout)  # Añadir el layout de ZPL al layout principal
 
-        self.show_carousel_button = QPushButton("Show Carousel")
-        self.show_carousel_button.clicked.connect(self.toggle_carousel)
-        main_layout.addWidget(self.show_carousel_button)
-
         self.carousel = ImageCarousel(self)
 
         self.setLayout(main_layout)
 
-    def reset_all(self):
+    def reset_all(self, include_search_bar=True):
         self.zpl_textedit.clear()
-        self.search_bar.clear()
         self.carousel.hide_carousel()
+        if include_search_bar:
+            self.search_bar.clear()
 
     def execute_search(self):
         """Executes a search using the text from the search bar."""
@@ -477,8 +520,24 @@ class MainWindow(QWidget):
             "qty": copies_str if copies_str.isdigit() else "0",
         }
 
-        # Consulta a la API
-        item = self.api.get_mercadolibre_item(search_text, query_params)
+        self.reset_all(False)
+
+        # 1) Muestra overlay + spinner
+        self.show_loading_overlay()
+
+        # 2) Crea el worker
+        worker = SearchWorker(self.api, search_text, query_params)
+
+        # 3) Conecta la señal finished a la función que procesa el resultado
+        worker.signals.finished.connect(self.handle_search_result)
+
+        # 4) Inicia el worker en el pool
+        self.threadpool.start(worker)
+
+    def handle_search_result(self, item):
+        """Se llama cuando la tarea en segundo plano termina."""
+        # Oculta el overlay
+        self.hide_loading_overlay()
 
         if item and "label" in item:
             self.zpl_textedit.setPlainText(item["label"])  # Pega el ZPL en el campo
@@ -569,6 +628,7 @@ class MainWindow(QWidget):
             self.status_timer.stop()
 
     def paste_from_clipboard(self):
+        self.search_bar.setText("")
         clipboard = QApplication.clipboard()
         # Elimina espacios en blanco y comillas dobles al principio y al final
         text = clipboard.text().strip().strip('"')
@@ -994,23 +1054,6 @@ class MainWindow(QWidget):
 
         super().closeEvent(event)
 
-    def toggle_carousel(self):
-        """Toggle the display of the carousel window."""
-        if self.carousel.is_visible:
-            self.carousel.hide_carousel()
-        else:
-            self.carousel.set_images(
-                [
-                    "https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg",
-                    "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg",
-                ]
-            )
-            # self.carousel.set_images([
-            #     "https://http2.mlstatic.com/D_NQ_NP_866308-MLM78827953108_092024-F.jpg",
-            #     "https://http2.mlstatic.com/D_NQ_NP_777247-MLM75597715900_042024-F.jpg"
-            # ])
-            self.carousel.show_carousel(parent_geometry=self.geometry())
-
     def update_carousel_position(self):
         """Update the carousel position to align with the main window."""
         if self.carousel.is_visible:
@@ -1019,9 +1062,13 @@ class MainWindow(QWidget):
     def moveEvent(self, event):
         """Update the carousel's position when the main window moves."""
         self.update_carousel_position()
+        if self.loading_overlay is not None:
+            self.loading_overlay.setGeometry(self.rect())
         super().moveEvent(event)
 
     def resizeEvent(self, event):
         """Update the carousel's position when the main window resizes."""
         self.update_carousel_position()
+        if self.loading_overlay is not None:
+            self.loading_overlay.setGeometry(self.rect())
         super().resizeEvent(event)  # Mantiene el comportamiento original

@@ -1,6 +1,6 @@
 import os
 
-from PyQt5.QtCore import QPoint, QRect, Qt, QUrl, pyqtSignal
+from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, Qt, QUrl, pyqtSignal, QSize
 from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget
@@ -23,15 +23,37 @@ class CustomTextEdit(QTextEdit):
             (super(CustomTextEdit, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
 
 
+class PasteEventFilter(QObject):
+    # Definimos una señal que transporte el texto pegado
+    pasted = pyqtSignal(str)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress:
+            if (event.modifiers() & Qt.ControlModifier) and (event.key() == Qt.Key_V):
+                # Obtenemos el QLineEdit que disparó el evento
+                if isinstance(obj, QLineEdit):
+                    mime_data = QApplication.clipboard().mimeData()
+                    if mime_data.hasText():
+                        text = mime_data.text().strip().strip('"')
+                        # Remplaza el texto anterior por el nuevo valor a pegar
+                        obj.setText(text)
+                        # Emitimos la señal con el texto
+                        self.pasted.emit(text)
+                        return True  # Evento manejado
+        return super().eventFilter(obj, event)
+
+
 class CustomSearchBar(QLineEdit):
-    def insertFromMimeData(self, source):
-        print("ENTRO AQUI MIME DATA")
-        if source.hasText():
-            print("ENTRO AQUI MIME DATA")
-            text = source.text()
-            # Elimina espacios en blanco y comillas dobles al principio y al final
-            text = text.strip().strip('"')
-            (super(CustomSearchBar, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.paste_event_filter = PasteEventFilter()
+        # Instala el filtro de eventos sobre sí mismo
+        self.installEventFilter(self.paste_event_filter)
+        # self.paste_event_filter.pasted.connect(self.on_pasted)
+
+    # def on_pasted(self, text):
+    #     # Si quieres, puedes setear aquí el texto al QLineEdit
+    #     self.setText(text)
 
 
 class SpinBoxWidget(QWidget):
@@ -239,6 +261,8 @@ class ImageCarousel(QWidget):
 
             # Show spinner while loading
             spinner = QMovie(os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif"))  # Replace with the path to your local spinner GIF
+            # Fuerza el tamaño del spinner a 60×60
+            spinner.setScaledSize(QSize(60, 60))
             label.setMovie(spinner)
             spinner.start()
 
@@ -270,6 +294,7 @@ class ImageCarousel(QWidget):
                 # Store the original image
                 self.original_images[img_url] = pixmap
 
+                label.setMovie(None)   # QMovie no es necesario una vez no hay animación
                 # Set the loaded image to the label
                 label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
