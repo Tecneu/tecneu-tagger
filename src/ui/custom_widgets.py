@@ -1,6 +1,6 @@
 import os
 
-from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, Qt, QUrl, pyqtSignal, QSize
+from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, QUrl, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget
@@ -9,7 +9,7 @@ from config import BASE_ASSETS_PATH
 from font_config import FontManager
 
 # ui/custom_widgets.py
-__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar"]
+__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar", "ImageCarousel"]
 
 QApplication.processEvents()
 
@@ -240,8 +240,6 @@ class ImageCarousel(QWidget):
         """Add images to the carousel."""
         self.clear_images()
         self.images = images
-        # self.spinners = {}  # Track spinners to ensure they are properly handled
-        # self.labels = {}  # Track labels to associate them with their respective images
 
         for img_url in images:
             label = QLabel()
@@ -269,54 +267,124 @@ class ImageCarousel(QWidget):
             # Add the QLabel to the layout
             self.image_layout.addWidget(label, alignment=Qt.AlignCenter)
 
-            request = QNetworkRequest(QUrl(img_url))
-            print(f"Sending request to {img_url}")
-
-            reply = self.network_manager.get(request)
-            reply.finished.connect(lambda r=reply, lbl=label, sp=spinner, url=img_url: self.handle_reply(r, lbl, sp, url))
+            # Inicia la descarga con reintentos
+            self.download_image(img_url, label, spinner, attempt=1)
 
         print("All requests sent.")
 
-    def handle_reply(self, reply, label, spinner, img_url):
-        # spinner = self.spinners.get(img_url)  # Safely retrieve the spinner
-        # label = self.labels.get(img_url)  # Retrieve the correct label for the URL
-        if reply.error() == QNetworkReply.NoError:
-            print("Image loaded successfully.")
-            data = reply.readAll()
-            print(f"Data length: {len(data)}")
-            content_length = int(reply.rawHeader(b"Content-Length").data())
-            print(f"Expected Content-Length: {content_length}")
+    def download_image(self, url, label, spinner, attempt):
+        """
+        Lanza una petición GET con un QNetworkRequest y QTimer de timeout (5s).
+        Almacena la información necesaria en las propiedades del reply para
+        poder manejarla en handle_reply y handle_timeout.
+        """
+        request = QNetworkRequest(QUrl(url))
+        reply = self.network_manager.get(request)
 
-            print(f"{len(data)}, {content_length}")
+        # Guardamos info en el QNetworkReply para recuperarla luego
+        reply.setProperty("url", url)
+        reply.setProperty("label", label)
+        reply.setProperty("spinner", spinner)
+        reply.setProperty("attempt", attempt)
+
+        # Creamos un QTimer de 5s para timeout
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.setInterval(4000)  # 4 segundos
+        # Cuando ocurra el timeout, llamamos a self.handle_timeout(reply)
+        timer.timeout.connect(lambda: self.handle_timeout(reply))
+        reply.setProperty("timer", timer)
+
+        # Conectamos la señal finished para procesar la respuesta
+        reply.finished.connect(lambda: self.handle_reply(reply))
+
+        timer.start()
+
+        print(f"Sending request to {url}, attempt={attempt}")
+
+    def handle_timeout(self, reply):
+        """
+        Se llama si pasan 5s sin que el reply haya terminado.
+        Abortamos la conexión y dejamos que handle_reply gestione
+        el reintento.
+        """
+        if reply.isRunning():
+            print(f"Timeout for {reply.property('url')}, aborting...")
+            reply.abort()  # Forzamos la finalización
+
+    def handle_reply(self, reply):
+        """
+        Maneja la respuesta final, sea por éxito, error o timeout (abort).
+        Decide si reintentar o fallar definitivamente.
+        """
+        url = reply.property("url")
+        label = reply.property("label")
+        spinner = reply.property("spinner")
+        attempt = reply.property("attempt")
+        timer = reply.property("timer")
+
+        # Detener el timer para que no dispare más
+        if timer and timer.isActive():
+            timer.stop()
+            timer.deleteLater()
+
+        if reply.error() == QNetworkReply.NoError:
+            # print("Image loaded successfully.")
+            data = reply.readAll()
 
             pixmap = QPixmap()
             if pixmap.loadFromData(data):
                 # Store the original image
-                self.original_images[img_url] = pixmap
+                self.original_images[url] = pixmap
 
-                label.setMovie(None)   # QMovie no es necesario una vez no hay animación
+                # Quitar spinner
+                if spinner:
+                    spinner.stop()
+                    spinner.deleteLater()
+                label.setMovie(None)  # QMovie no es necesario una vez no hay animación
+
                 # Set the loaded image to the label
                 label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                # print(f"Image loaded successfully from {url}")
 
                 # Configure mouse events dynamically after successful load
-                label.setMouseTracking(True)
-                print(f"AQUI URL: {reply.url().toString()}")
-                label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
-                label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
-                label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
+                self.configure_label_for_zoom(label, url)
             else:
-                print("Failed to load pixmap.")
-                label.setText("Invalid Image")
+                # Datos corruptos o no es una imagen válida
+                print(f"Invalid image data from {url}")
+                self.retry_or_fail(url, label, spinner, attempt, "Invalid Image")
         else:
-            print(f"Failed to load image: {reply.error()}")
-            label.setText("Failed to load")
+            # Error (puede ser error real o .abort() por timeout)
+            print(f"Failed to load image from {url}, error={reply.error()}")
+            self.retry_or_fail(url, label, spinner, attempt, "Failed to load")
 
-        # Safely stop and delete spinner
-        if spinner:
-            spinner.stop()
-            spinner.deleteLater()
-            # del self.spinners[img_url]  # Remove spinner from tracking
         reply.deleteLater()
+
+    def configure_label_for_zoom(self, label, img_url):
+        """Configura el hover y el mouseMove si quieres zoom."""
+        label.setMouseTracking(True)
+        label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
+        label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
+        label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
+
+    def retry_or_fail(self, url, label, spinner, attempt, fail_text):
+        """
+        Maneja la lógica de reintento hasta 3 veces.
+        Si ya se ha intentado 3, marcamos como fallido definitivamente.
+        De lo contrario, reintenta con attempt+1.
+        """
+        if attempt < 3:
+            # Reintentar
+            new_attempt = attempt + 1
+            print(f"Retrying {url} (attempt={new_attempt})")
+            self.download_image(url, label, spinner, new_attempt)
+        else:
+            # Ya no reintentamos más
+            if spinner:
+                spinner.stop()
+                spinner.deleteLater()
+            label.setMovie(None)
+            label.setText(fail_text)
 
     def clear_images(self):
         """Clear the current images in the carousel."""
@@ -378,13 +446,13 @@ class ImageCarousel(QWidget):
             zoom_x = max(0, min(pixmap_x - 20, pixmap_width - 40))
             zoom_y = max(0, min(pixmap_y - 20, pixmap_height - 40))
 
-            print("=================")
-            print(f"scale_x: {scale_x}, scale_y: {scale_y}")
-            print(f"{label_width}, {label_height}, {pixmap_width}, {pixmap_height}")
-            print(f"{zoom_x}, {zoom_y}")
-            print(f"{pixmap_width}, {pixmap_height}")
-            print(f"{pixmap_x}, {pixmap_y}")
-            print("=================")
+            # print("=================")
+            # print(f"scale_x: {scale_x}, scale_y: {scale_y}")
+            # print(f"{label_width}, {label_height}, {pixmap_width}, {pixmap_height}")
+            # print(f"{zoom_x}, {zoom_y}")
+            # print(f"{pixmap_width}, {pixmap_height}")
+            # print(f"{pixmap_x}, {pixmap_y}")
+            # print("=================")
             # self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y))
             self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y), scale_x, scale_y)
 

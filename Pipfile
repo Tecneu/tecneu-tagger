@@ -35,6 +35,8 @@ flake8 = "*"
 mypy = "*"
 pylint = "*"
 flake8-pyproject = "*"
+pytest = "*"
+pytest-qt = "*"
 
 [requires]
 python_version = "3.12"

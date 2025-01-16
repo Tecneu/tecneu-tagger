@@ -1054,6 +1054,12 @@ class MainWindow(QWidget):
 
         super().closeEvent(event)
 
+    def on_label_size_selected(self, name):
+        if name != "Seleccione una etiqueta":
+            self.selected_printer_name = name
+            self.settings.setValue("label_size", self.printer_selector.currentText())
+            self.clear_focus()
+
     def update_carousel_position(self):
         """Update the carousel position to align with the main window."""
         if self.carousel.is_visible:

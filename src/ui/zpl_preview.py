@@ -3,7 +3,7 @@ import re
 import threading
 
 import requests
-from PyQt5.QtCore import QEvent, Qt, QTimer, pyqtSignal, QSize
+from PyQt5.QtCore import QEvent, QSize, Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QMovie, QPixmap
 from PyQt5.QtWidgets import QApplication, QLabel, QStackedLayout, QVBoxLayout, QWidget
 

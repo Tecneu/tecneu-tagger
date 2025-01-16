@@ -55,6 +55,17 @@
     - Con instrucciones de .spec (Recomendable): `pyinstaller main.spec`
     - Ejecutable inline con icono: `pyinstaller --onefile --windowed --icon=assets/logos/tecneu-logo.ico main.spec`
 
+5. **Ejecutar Tests (`test`)**
+   -  Usa pytest y pytest-qt para probar la aplicación y widgets de PyQt.
+   - Comando:
+   ```bash
+   pipenv run pytest
+   ```
+   - Para ejecutar solo un archivo de test específico, por ejemplo `test_carousel.py`:
+   - Comando:
+   ```bash
+   pipenv run pytest tests/test_carousel.py
+   ```
 ## Scripts de Desarrollo
 
 El proyecto define algunos **scripts** en él `Pipfile` para simplificar tareas comunes:
