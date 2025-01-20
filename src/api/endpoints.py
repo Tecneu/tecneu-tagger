@@ -17,6 +17,7 @@ class APIEndpoints:
             dict or None: The response data if successful, None otherwise.
         """
         endpoint = f"/mercadolibre/items/{inventory_id}"
+        print(f"ENDPOINT ===========> {endpoint}")
         response = self.interceptor.request("GET", endpoint, params=query_params)
         if response and response.status_code == 200:
             return response.json()

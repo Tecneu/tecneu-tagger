@@ -15,12 +15,15 @@ QApplication.processEvents()
 
 
 class CustomTextEdit(QTextEdit):
+    textPasted = pyqtSignal()  # Señal que no lleva datos
+
     def insertFromMimeData(self, source):
         if source.hasText():
             text = source.text()
             # Elimina espacios en blanco y comillas dobles al principio y al final
             text = text.strip().strip('"')
             (super(CustomTextEdit, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+            self.textPasted.emit()  # Emitir la señal cuando se pega el texto
 
 
 class PasteEventFilter(QObject):
