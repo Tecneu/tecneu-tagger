@@ -3,6 +3,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from requests.exceptions import RequestException, Timeout
+from PyQt5.QtCore import QSettings
 
 from config import BASE_ENV_PATH
 
@@ -18,8 +19,10 @@ API_BASE_URL = os.getenv("API_BASE_URL")
 
 class HTTPInterceptor:
     def __init__(self):
+        self.settings = QSettings("Tecneu", "TecneuTagger")  # Configuración de QSettings
         self.base_url = API_BASE_URL
-        self.access_token = None
+        # self.access_token = None
+        self.access_token = self.settings.value("access_token", None)  # Intentar recuperar el token existente
         self.max_retries = 3
         self.timeout = 2.5  # Timeout en segundos
 
@@ -38,6 +41,7 @@ class HTTPInterceptor:
 
             if response.status_code == 200:
                 self.access_token = response.json().get("access_token")
+                self.settings.setValue("access_token", self.access_token)  # Guardar el nuevo token en QSettings
                 print("Login exitoso. Nuevo token obtenido.")
                 # print(self.access_token)
                 return True
