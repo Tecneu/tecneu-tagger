@@ -52,6 +52,9 @@ class MainWindow(QWidget):
         # Crea un overlay pero no lo muestres aún
         self.loading_overlay = None
 
+        self.updating_zpl_from_result = False
+        self.latest_item_data = None
+
         self.print_thread = None
         self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
         self.is_paused = False  # Inicializa un atributo para llevar el seguimiento del estado de pausa
@@ -549,6 +552,7 @@ class MainWindow(QWidget):
 
     def reset_all(self, include_search_bar=True, include_zpl_textedit=True):
         self.carousel.hide_carousel()
+        self.labelViewer.clear_preview()
         if include_zpl_textedit:
             self.zpl_textedit.clear()
         if include_search_bar:
@@ -595,6 +599,14 @@ class MainWindow(QWidget):
         self.hide_loading_overlay()
 
         if item and "label" in item:
+            # 1) Guardamos el item por si luego lo usamos
+            self.latest_item_data = item
+            # 2) Activamos el flag para indicar que vamos a cambiar 'zpl_textedit' desde el código
+            self.updating_zpl_from_result = True
+
+            # 3) Este setPlainText dispara textChanged, por lo que
+            #    en validate_and_update_copies_from_zpl podemos saber
+            #    que NO debe volver a llamar a la API, sino usar 'latest_item_data'
             self.zpl_textedit.setPlainText(item["label"])  # Pega el ZPL en el campo
             self.latest_item_data = item  # Guarda la respuesta completa para otras funciones
             self.set_status_message("Etiqueta cargada correctamente.", duration=3, color="#28A745")
@@ -760,7 +772,215 @@ class MainWindow(QWidget):
             return
 
         self.updating_copies = True
+
+        # 1) Detectar si este cambio viene de handle_search_result
+        if self.updating_zpl_from_result:
+            # a) Desactivamos el flag
+            self.updating_zpl_from_result = False
+            if self.latest_item_data:
+                # b) Tenemos 'item' en self.latest_item_data.
+                item = self.latest_item_data
+
+                # c) Parseamos el ZPL para actualizar copias, preview, etc. (opcional)
+                zpl_text = self.zpl_textedit.toPlainText().strip()
+                self.parse_zpl_and_update_ui(zpl_text)
+
+                # d) Usamos el 'item' para, por ejemplo, mostrar imágenes, etc.
+                self.use_item_data(item)
+            self.latest_item_data = None
+            self.updating_copies = False
+            return
+
+        # 2) Caso normal: el texto lo cambió el usuario
         zpl_text = self.zpl_textedit.toPlainText().strip()
+
+        #    Validamos y, si es válido, o si necesitamos más datos del API,
+        #    podemos llamar a otro Worker. Aquí lo encapsulamos en un método aparte:
+        self.process_zpl_text_and_call_api_if_needed(zpl_text)
+
+        self.updating_copies = False
+
+
+
+        # zpl_text = self.zpl_textedit.toPlainText().strip()
+        # is_valid_zpl = self.is_valid_zpl(zpl_text)
+        #
+        # if not zpl_text or not is_valid_zpl:
+        #     self.copies_entry.setValue("")
+        #     if zpl_text and not is_valid_zpl:
+        #         self.set_status_message(
+        #             "ZPL ingresado no es valido",
+        #             duration=5,
+        #             countdown=True,
+        #             color="#BD2A2E",
+        #         )
+        #     self.labelViewer.clear_preview()
+        #     self.updating_copies = False
+        #     return
+        #
+        # # En este punto, el ZPL es válido. Extraemos ^PQ y el barcode
+        # pq_index = zpl_text.find("^PQ")
+        # if pq_index != -1:
+        #     # Encuentra el número de copias en el ZPL
+        #     start_index = pq_index + 3
+        #     end_index = zpl_text.find(",", start_index)
+        #
+        #     if end_index == -1:
+        #         end_index = len(zpl_text)
+        #
+        #     copies_str = zpl_text[start_index:end_index]
+        #     if copies_str.isdigit():
+        #         self.copies_entry.setValue(copies_str)
+        #
+        #     # Ajusta el ZPL para previsualizar con 1 copia
+        #     new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
+        #
+        #     print(f"BARCODE ========== {self.extract_barcode(zpl_text)}")
+        #     # Obtener informacion del item
+        #     inventory_id = self.extract_barcode(zpl_text)
+        #     print(f"COPIES_STR: {copies_str if copies_str.isdigit() else '0'}")
+        #
+        #     index = self.label_size_selector.currentIndex()
+        #     label_size = self.label_size_selector.itemData(index, Qt.UserRole)
+        #     query_params = {
+        #         "label_size": label_size,
+        #         "qty": copies_str if copies_str.isdigit() else "0",
+        #     }
+        #
+        #     # Falta ubicar cuando viene previsamente de un execute_search, y cuando entra unicamente a validate_and_update (Por modificar directamente el ZPL)
+        #     self.reset_all(True, False)
+        #
+        #     # Muestra overlay + spinner antes de iniciar el worker
+        #     self.show_loading_overlay()
+        #
+        #     # Crea el worker
+        #     worker = ZplWorker(self.api, inventory_id, query_params, new_zpl_text)
+        #
+        #     # Conecta la señal finished a la función que procesa el resultado
+        #     worker.signals.finished.connect(self.handle_zpl_worker_result)
+        #
+        #     # Ejecuta en el pool de hilos
+        #     self.threadpool.start(worker)
+
+    def parse_zpl_and_update_ui(self, zpl_text):
+        """
+        Ejemplo de parsing de ^PQ en el ZPL para actualizar self.copies_entry
+        y quizá la vista previa local (si la tienes).
+        """
+        # if not zpl_text:
+        #     self.copies_entry.setValue(0)
+        #     # Limpia vista previa, etc.
+        #     self.set_status_message("ZPL vacío o inválido", duration=2, color="#BD2A2E")
+        #     return
+        #
+        # # Simple validación
+        # if not self.is_valid_zpl(zpl_text):
+        #     self.copies_entry.setValue(0)
+        #     # Limpia vista previa
+        #     self.set_status_message("ZPL no válido", duration=2, color="#BD2A2E")
+        #     return
+        #
+        # # Extraer ^PQ
+        # pq_index = zpl_text.find("^PQ")
+        # if pq_index == -1:
+        #     self.copies_entry.setValue(1)  # Por defecto
+        # else:
+        #     start_index = pq_index + 3
+        #     end_index = zpl_text.find(",", start_index)
+        #     if end_index == -1:
+        #         end_index = len(zpl_text)
+        #     copies_str = zpl_text[start_index:end_index]
+        #     if copies_str.isdigit():
+        #         self.copies_entry.setValue(int(copies_str))
+        #     else:
+        #         self.copies_entry.setValue(1)
+
+        # (Opcional) Actualizar una vista previa local, si la tuvieras
+        # self.labelViewer.preview_label(zpl_text)
+        # self.labelViewer.preview_label(new_zpl_text)
+        is_valid_zpl = self.is_valid_zpl(zpl_text)
+
+        if not zpl_text or not is_valid_zpl:
+            self.copies_entry.setValue("")
+            if zpl_text and not is_valid_zpl:
+                self.set_status_message(
+                    "ZPL ingresado no es valido",
+                    duration=5,
+                    countdown=True,
+                    color="#BD2A2E",
+                )
+            self.labelViewer.clear_preview()
+            self.updating_copies = False
+            return
+
+        # En este punto, el ZPL es válido. Extraemos ^PQ y el barcode
+        pq_index = zpl_text.find("^PQ")
+        if pq_index != -1:
+            # Encuentra el número de copias en el ZPL
+            start_index = pq_index + 3
+            end_index = zpl_text.find(",", start_index)
+
+            if end_index == -1:
+                end_index = len(zpl_text)
+
+            copies_str = zpl_text[start_index:end_index]
+            if copies_str.isdigit():
+                self.copies_entry.setValue(copies_str)
+
+            # Ajusta el ZPL para previsualizar con 1 copia
+            new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
+            self.labelViewer.preview_label(new_zpl_text)
+
+    def use_item_data(self, item):
+        """
+        Maneja la información del 'item' obtenido. Por ejemplo,
+        mostrar imágenes en un carrusel, actualizar la UI, etc.
+        """
+        if "pictures" in item:
+            image_urls = [picture["url"] for picture in item.get("pictures", [])]
+            if image_urls:
+                self.carousel.set_images(image_urls)
+                self.carousel.show_carousel(parent_geometry=self.geometry())
+                self.set_status_message(
+                    f"Se encontraron {len(image_urls)} imágenes",
+                    duration=3,
+                    color="#28A745"
+                )
+            else:
+                self.set_status_message(
+                    "No se encontraron imágenes del producto",
+                    duration=5,
+                    countdown=True,
+                    color="#BD2A2E",
+                )
+
+    def process_zpl_text_and_call_api_if_needed(self, zpl_text):
+        """
+        Si el ZPL está bien formado y necesitamos más datos del API,
+        aquí puedes lanzar otro Worker o simplemente parsear y mostrar en la UI.
+        """
+        # if not zpl_text or not self.is_valid_zpl(zpl_text):
+        #     # ZPL vacío o inválido, no hacemos llamada a la API
+        #     return
+        #
+        # # Imagínate que quieres extraer el barcode y hacer una llamada a la API
+        # barcode = self.extract_barcode(zpl_text)
+        # copies_str = str(self.copies_entry.value())
+        #
+        # index = self.label_size_selector.currentIndex()
+        # label_size = self.label_size_selector.itemData(index, Qt.UserRole)
+        # query_params = {
+        #     "label_size": label_size,
+        #     "qty": copies_str,
+        # }
+        #
+        # # Muestra overlay mientras consultamos
+        # self.show_loading_overlay()
+        #
+        # # Creamos un ZPLWorker, o reutilizamos tu SearchWorker. Aquí un ejemplo ficticio:
+        # worker = SearchWorker(self.api, barcode, query_params)
+        # worker.signals.finished.connect(self.handle_zpl_worker_result)
+        # self.threadpool.start(worker)
         is_valid_zpl = self.is_valid_zpl(zpl_text)
 
         if not zpl_text or not is_valid_zpl:
@@ -793,10 +1013,10 @@ class MainWindow(QWidget):
             # Ajusta el ZPL para previsualizar con 1 copia
             new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
 
-            print(f"BARCODE ========== {self.extract_barcode(zpl_text)}")
+            # print(f"BARCODE ========== {self.extract_barcode(zpl_text)}")
             # Obtener informacion del item
             inventory_id = self.extract_barcode(zpl_text)
-            print(f"COPIES_STR: {copies_str if copies_str.isdigit() else '0'}")
+            # print(f"COPIES_STR: {copies_str if copies_str.isdigit() else '0'}")
 
             index = self.label_size_selector.currentIndex()
             label_size = self.label_size_selector.itemData(index, Qt.UserRole)
@@ -824,7 +1044,7 @@ class MainWindow(QWidget):
         """Se llama cuando el ZplWorker termina."""
         self.hide_loading_overlay()
 
-        if item is None:
+        if not item:
             # Manejar error al obtener el item
             self.set_status_message(
                 "Fallo el obtener el item",
@@ -833,22 +1053,26 @@ class MainWindow(QWidget):
                 color="#BD2A2E",
             )
             self.labelViewer.clear_preview()
-        else:
-            # Procesar imágenes
-            image_urls = [picture["url"] for picture in item.get("pictures", [])]
-            if image_urls:
-                self.carousel.set_images(image_urls)
-                self.carousel.show_carousel(parent_geometry=self.geometry())
-            else:
-                self.set_status_message(
-                    "No se encontraron imágenes del producto",
-                    duration=5,
-                    countdown=True,
-                    color="#BD2A2E",
-                )
+            return
 
-            # Actualiza la vista previa con el ZPL modificado
-            self.labelViewer.preview_label(new_zpl_text)
+        # Reutilizar la lógica para mostrar imágenes, etc.
+        self.use_item_data(item)
+
+            # Procesar imágenes
+            # image_urls = [picture["url"] for picture in item.get("pictures", [])]
+            # if image_urls:
+            #     self.carousel.set_images(image_urls)
+            #     self.carousel.show_carousel(parent_geometry=self.geometry())
+            # else:
+            #     self.set_status_message(
+            #         "No se encontraron imágenes del producto",
+            #         duration=5,
+            #         countdown=True,
+            #         color="#BD2A2E",
+            #     )
+
+        # Actualiza la vista previa con el ZPL modificado
+        self.labelViewer.preview_label(new_zpl_text)
 
         # Liberamos el flag
         self.updating_copies = False

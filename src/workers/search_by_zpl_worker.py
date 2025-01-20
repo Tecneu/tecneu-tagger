@@ -19,8 +19,16 @@ class ZplWorker(QRunnable):
     @pyqtSlot()
     def run(self):
         """Método que se ejecuta en segundo plano."""
-        # Llamada potencialmente costosa a la API
+        # 1) Llamada (potencialmente costosa) a la API
         item = self.api.get_mercadolibre_item(self.inventory_id, self.query_params)
 
-        # Emitimos la señal con el resultado (item) y el ZPL final que quieras usar
-        self.signals.finished.emit(item, self.new_zpl_text)
+        # 2) Determinar qué ZPL usar:
+        #    - Si la API devolvió un ZPL nuevo en 'item["label"]', úsalo.
+        #    - De lo contrario, usa el ZPL original que venía en 'self.new_zpl_text'.
+        if item and "label" in item:
+            final_zpl = item["label"]
+        else:
+            final_zpl = self.new_zpl_text
+
+        # 3) Emitimos la señal con el 'item' y el ZPL final que se usará
+        self.signals.finished.emit(item, final_zpl)
