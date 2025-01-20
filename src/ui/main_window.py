@@ -22,13 +22,13 @@ from PyQt5.QtWidgets import (
 )
 
 from api.endpoints import APIEndpoints
-from config import BASE_ASSETS_PATH, MAX_DELAY
+from config import BASE_ASSETS_PATH, MAX_DELAY, LABEL_SIZES
 from font_config import FontManager
 from print_thread import PrintThread
 from utils import list_printers_to_json
 from worker import SearchWorker
 
-from .custom_widgets import CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget
+from .custom_widgets import CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget, CustomComboBox
 from .zpl_preview import LabelViewer
 
 __all__ = ["MainWindow"]
@@ -234,7 +234,9 @@ class MainWindow(QWidget):
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
-        turtle_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "turtle-du.svg")).scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        turtle_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "turtle-du.svg")).scaled(35, 35,
+                                                                                                Qt.KeepAspectRatio,
+                                                                                                Qt.SmoothTransformation)
         self.turtle_icon_label.setPixmap(turtle_pixmap)
         self.delay_slider_layout.addWidget(self.turtle_icon_label)
 
@@ -242,7 +244,9 @@ class MainWindow(QWidget):
 
         # Icono de conejo para el lado rápido
         self.rabbit_icon_label = QLabel()
-        rabbit_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "rabbit-running-du.svg")).scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        rabbit_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "rabbit-running-du.svg")).scaled(35, 35,
+                                                                                                        Qt.KeepAspectRatio,
+                                                                                                        Qt.SmoothTransformation)
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
 
@@ -264,7 +268,8 @@ class MainWindow(QWidget):
         self.slider_label_frame.raise_()  # Asegura que el frame del slider esté siempre en primer plano
 
         # Asegúrate de llamar a self.raise_slider_labels() después de cualquier operación que afecte la visibilidad
-        self.labelViewer.imageLoaded.connect(self.raise_slider_labels)  # Suponiendo que imageLoaded es una señal emitida después de cargar la imagen
+        self.labelViewer.imageLoaded.connect(
+            self.raise_slider_labels)  # Suponiendo que imageLoaded es una señal emitida después de cargar la imagen
 
         # Slider label setup
         self.slider_label = QLabel(self.slider_label_frame)
@@ -393,6 +398,50 @@ class MainWindow(QWidget):
         self.search_button.setFixedSize(30, 30)
         self.search_button.clicked.connect(self.execute_search)  # Buscar al hacer clic en la lupa
 
+        # Creación del menú desplegable para las impresoras
+        self.label_size_selector = CustomComboBox()
+        self.label_size_selector.setMinimumSize(70, 30)
+        self.label_size_selector.setMaximumWidth(200)
+        self.label_size_selector.setStyleSheet(
+            """
+        QListView::item{
+            padding: 5px 10px;
+        }
+        """
+        )
+
+        self.label_size_selector.currentIndexChanged.connect(self.update_label_size_icon)
+        model = QStandardItemModel()
+
+        # Crea el ítem "Seleccione una impresora" y hazlo no seleccionable
+        defaultItem = QStandardItem(
+            QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "badge_blue_check.svg")),
+            "Seleccione un tamaño",
+        )  # Texto que se muestra
+        defaultItem.setData("", Qt.UserRole)  # Valor asociado
+        defaultItem.setEnabled(False)  # Hace que el ítem sea no seleccionable
+        model = QStandardItemModel()
+        model.appendRow(defaultItem)
+
+        # Filtra y agrega los nombres de las impresoras al menú desplegable
+        # Poblar QComboBox con los datos
+        # El 'title' se muestra al usuario y 'value' lo almacenamos como userData
+        for size_item in LABEL_SIZES:
+            qitem = QStandardItem()
+            # El texto que se muestra al usuario
+            qitem.setData(size_item["title"], Qt.DisplayRole)
+            # El valor "oculto" (equivalente a userData)
+            qitem.setData(size_item["value"], Qt.UserRole)
+
+            model.appendRow(qitem)
+
+        self.label_size_selector.setModel(model)
+        self.label_size_selector.setCurrentIndex(1)  # Establece el primer tamaño como el valor por defecto
+        # Asegúrate de que "Seleccione una impresora" no sea seleccionable después de la inicialización
+        self.label_size_selector.model().item(0).setEnabled(False)
+
+        self.label_size_selector.currentIndexChanged.connect(self.on_label_size_changed)
+
         # Botón para pegar del portapapeles
         self.paste_search_button = QPushButton()
         paste_icon = QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "paste.svg"))
@@ -404,6 +453,7 @@ class MainWindow(QWidget):
         search_layout.addWidget(self.search_bar)
         search_layout.addWidget(self.search_button)
         search_layout.addWidget(self.paste_search_button)
+        search_layout.addWidget(self.label_size_selector)
 
         zpl_layout.addLayout(search_layout)
 
@@ -415,8 +465,7 @@ class MainWindow(QWidget):
         # Configurar botones para el ZPL input/impresora
         zpl_buttons_layout = QHBoxLayout()
         # Creación del menú desplegable para las impresoras
-        self.printer_selector = QComboBox()
-        self.printer_selector.setView(QListView())  # Asegúrate de importar QListView
+        self.printer_selector = CustomComboBox()
         self.printer_selector.setMinimumHeight(30)
         self.printer_selector.setStyleSheet(
             """
@@ -502,10 +551,10 @@ class MainWindow(QWidget):
         if include_search_bar:
             self.search_bar.clear()
 
-    def execute_search(self):
+    def execute_search(self, custom_search_text=None):
         """Executes a search using the text from the search bar."""
-        search_text = self.search_bar.text().strip()
-        if not search_text:
+        search_text = custom_search_text or self.search_bar.text().strip()
+        if not search_text and not custom_search_text:
             self.set_status_message(
                 "Por favor ingresa un ID o código para buscar.",
                 duration=5,
@@ -515,8 +564,11 @@ class MainWindow(QWidget):
             return
 
         copies_str = self.copies_entry.text()
+
+        index = self.label_size_selector.currentIndex()
+        label_size = self.label_size_selector.itemData(index, Qt.UserRole)
         query_params = {
-            "label_size": "4_x_2_5",
+            "label_size": label_size,
             "qty": copies_str if copies_str.isdigit() else "0",
         }
 
@@ -647,6 +699,17 @@ class MainWindow(QWidget):
         if index != 0:  # Asumiendo que el índice 0 es "Seleccione una impresora"
             (self.printer_selector.setItemIcon(index, QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "printer.svg"))))
 
+    def update_label_size_icon(self, index):
+        # Eliminar el ícono de todos los ítems
+        for i in range(self.label_size_selector.count()):
+            self.label_size_selector.setItemIcon(i, QIcon())
+
+        # Establecer el ícono solo en el ítem seleccionado
+        if index != 0:  # Asumiendo que el índice 0 es "Seleccione una impresora"
+            (self.label_size_selector.setItemIcon(index,
+                                                  QIcon(
+                                                      os.fspath(BASE_ASSETS_PATH / "icons" / "badge_blue_check.svg"))))
+
     def increment(self):
         self.copies_entry.incrementValue()
 
@@ -678,7 +741,8 @@ class MainWindow(QWidget):
         self.slider_label.setText(str(value))
         slider_pos = self.delay_slider.pos()
         slider_length = self.delay_slider.width()
-        slider_value = (value - self.delay_slider.minimum()) / (self.delay_slider.maximum() - self.delay_slider.minimum())
+        slider_value = (value - self.delay_slider.minimum()) / (
+                self.delay_slider.maximum() - self.delay_slider.minimum())
         slider_offset = int(slider_length * slider_value - self.slider_label_frame.width() / 2)
         self.slider_label_frame.move(slider_pos.x() + slider_offset, slider_pos.y() - 40)
         self.slider_label_frame.show()
@@ -727,8 +791,10 @@ class MainWindow(QWidget):
             # Obtener informacion del item
             inventory_id = self.extract_barcode(zpl_text)
             print(f"COPIES_STR: {copies_str if copies_str.isdigit() else '0'}")
+            index = self.label_size_selector.currentIndex()
+            label_size = self.label_size_selector.itemData(index, Qt.UserRole)
             query_params = {
-                "label_size": "4_x_2_5",
+                "label_size": label_size,
                 "qty": copies_str if copies_str.isdigit() else "0",
             }
             item = self.api.get_mercadolibre_item(inventory_id, query_params)
@@ -829,6 +895,11 @@ class MainWindow(QWidget):
             self.selected_printer_name = name
             self.settings.setValue("printer_name", self.printer_selector.currentText())
             self.clear_focus()
+
+    def on_label_size_changed(self, index):
+        zpl_text = self.zpl_textedit.toPlainText().strip().strip('"')
+        inventory_id = self.extract_barcode(zpl_text)
+        self.execute_search(inventory_id)
 
     def clear_focus(self):
         """
@@ -1053,12 +1124,6 @@ class MainWindow(QWidget):
         self.settings.setValue("delay_value", self.delay_slider.value())
 
         super().closeEvent(event)
-
-    def on_label_size_selected(self, name):
-        if name != "Seleccione una etiqueta":
-            self.selected_printer_name = name
-            self.settings.setValue("label_size", self.printer_selector.currentText())
-            self.clear_focus()
 
     def update_carousel_position(self):
         """Update the carousel position to align with the main window."""

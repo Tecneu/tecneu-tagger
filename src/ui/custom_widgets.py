@@ -3,13 +3,13 @@ import os
 from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, QUrl, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget, QComboBox, QListView
 
 from config import BASE_ASSETS_PATH
 from font_config import FontManager
 
 # ui/custom_widgets.py
-__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar", "ImageCarousel"]
+__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar", "CustomComboBox", "ImageCarousel"]
 
 QApplication.processEvents()
 
@@ -55,6 +55,33 @@ class CustomSearchBar(QLineEdit):
     #     # Si quieres, puedes setear aquí el texto al QLineEdit
     #     self.setText(text)
 
+class CustomComboBox(QComboBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Reemplazamos la vista por un QListView
+        # Usamos un QListView como vista
+        list_view = QListView()
+        self.setView(list_view)
+        # IMPORTANTÍSIMO: Instalamos el eventFilter en la *viewport* de la vista,
+        # no en la vista directa
+        list_view.viewport().installEventFilter(self)
+
+    def eventFilter(self, source, event):
+        # Verificamos si el evento proviene de la viewport
+        if source == self.view().viewport():
+            if event.type() == QEvent.MouseButtonRelease:
+                pos = event.pos()
+                # Determinamos el índice sobre el que se hizo clic
+                index = self.view().indexAt(pos)
+                # print("ENTRA ACA EVENTO COMBO")
+                # print(index)
+                if index.isValid():
+                    item = self.model().item(index.row())
+                    if item is not None and not item.isEnabled():
+                        # Ítem deshabilitado => Ignoramos el clic
+                        print("Click en ítem deshabilitado, ignorando...")
+                        return True
+        return super().eventFilter(source, event)
 
 class SpinBoxWidget(QWidget):
     valueChanged = pyqtSignal(int)  # Definir una nueva señal que pasa el valor actual
