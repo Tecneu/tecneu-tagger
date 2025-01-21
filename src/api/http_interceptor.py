@@ -1,20 +1,10 @@
 import os
 
 import requests
-from dotenv import load_dotenv
-from requests.exceptions import RequestException, Timeout
 from PyQt5.QtCore import QSettings
+from requests.exceptions import RequestException, Timeout
 
-from config import BASE_ENV_PATH
-
-# from app_secrets import API_EMAIL, API_PASSWORD, API_BASE_URL
-
-# dotenv_path = join(dirname(__file__), '.env.production')
-load_dotenv(BASE_ENV_PATH / ".env.development")
-
-API_EMAIL = os.getenv("API_EMAIL")
-API_PASSWORD = os.getenv("API_PASSWORD")
-API_BASE_URL = os.getenv("API_BASE_URL")
+from config import API_BASE_URL, API_EMAIL, API_PASSWORD, BASE_ENV_PATH
 
 
 class HTTPInterceptor:
@@ -27,9 +17,6 @@ class HTTPInterceptor:
         self.timeout = 2.5  # Timeout en segundos
 
     def login(self):
-        # print(f"API_EMAIL: {API_EMAIL}")
-        # print(f"API_PASSWORD: {API_PASSWORD}")
-        # print(f"API_BASE_URL: {API_BASE_URL}")
         """Realiza login para obtener un nuevo access_token."""
         login_url = f"{self.base_url}/auth/login"
         try:

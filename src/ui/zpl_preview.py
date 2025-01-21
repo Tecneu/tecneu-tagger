@@ -68,15 +68,13 @@ class LabelViewer(QWidget):
 
     def preview_label(self, zpl_label):
         """
-       Muestra (o recarga) una vista previa para el ZPL dado.
-       Si el ZPL (sin ^PQ) es igual al último cargado y la última carga fue exitosa,
-       se reutiliza la imagen anterior para evitar llamar de nuevo a Labelary.
-       """
+        Muestra (o recarga) una vista previa para el ZPL dado.
+        Si el ZPL (sin ^PQ) es igual al último cargado y la última carga fue exitosa,
+        se reutiliza la imagen anterior para evitar llamar de nuevo a Labelary.
+        """
         current_zpl = self._strip_pq(zpl_label)  # Obtener ZPL sin información de cantidad
         # 1) Comprobamos si es el mismo ZPL que ya se cargó exitosamente
-        if (current_zpl == self.last_zpl
-                and self.last_load_successful
-                and self.last_pixmap is not None):
+        if current_zpl == self.last_zpl and self.last_load_successful and self.last_pixmap is not None:
             # Asegurarnos de ocultar el spinner
             self.hide_spinner()
             # Reutilizar la última imagen
@@ -229,7 +227,7 @@ def get_image_from_zpl(zpl_label, label_size):
     Envía ZPL a Labelary para obtener PNG.
     Retorna los bytes de la imagen si es exitoso, o None si falla.
     """
-    print_density = "8dpmm" # 203 dpi
+    print_density = "8dpmm"  # 203 dpi
     url = f"http://api.labelary.com/v1/printers/{print_density}/labels/{label_size}/0"
     headers = {
         "Accept": "image/png",
@@ -249,6 +247,7 @@ class ImageLoadedEvent(QEvent):
     Evento personalizado para transportar la imagen desde el hilo de carga
     al hilo principal, donde se actualiza la UI.
     """
+
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
     def __init__(self, image_data):

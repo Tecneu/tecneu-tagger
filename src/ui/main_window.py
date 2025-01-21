@@ -21,14 +21,14 @@ from PyQt5.QtWidgets import (
 )
 
 from api.endpoints import APIEndpoints
-from config import BASE_ASSETS_PATH, MAX_DELAY, LABEL_SIZES
+from config import BASE_ASSETS_PATH, LABEL_SIZES, MAX_DELAY
 from font_config import FontManager
 from print_thread import PrintThread
 from utils import list_printers_to_json
-from workers.search_worker import SearchWorker
 from workers.search_by_zpl_worker import ZplWorker
+from workers.search_worker import SearchWorker
 
-from .custom_widgets import CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget, CustomComboBox
+from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget
 from .zpl_preview import LabelViewer
 
 __all__ = ["MainWindow"]
@@ -237,9 +237,7 @@ class MainWindow(QWidget):
 
         # Icono de tortuga para el lado lento
         self.turtle_icon_label = QLabel()
-        turtle_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "turtle-du.svg")).scaled(35, 35,
-                                                                                                Qt.KeepAspectRatio,
-                                                                                                Qt.SmoothTransformation)
+        turtle_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "turtle-du.svg")).scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.turtle_icon_label.setPixmap(turtle_pixmap)
         self.delay_slider_layout.addWidget(self.turtle_icon_label)
 
@@ -247,9 +245,7 @@ class MainWindow(QWidget):
 
         # Icono de conejo para el lado rápido
         self.rabbit_icon_label = QLabel()
-        rabbit_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "rabbit-running-du.svg")).scaled(35, 35,
-                                                                                                        Qt.KeepAspectRatio,
-                                                                                                        Qt.SmoothTransformation)
+        rabbit_pixmap = QPixmap(os.fspath(BASE_ASSETS_PATH / "icons" / "rabbit-running-du.svg")).scaled(35, 35, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.rabbit_icon_label.setPixmap(rabbit_pixmap)
         self.delay_slider_layout.addWidget(self.rabbit_icon_label)
 
@@ -271,8 +267,7 @@ class MainWindow(QWidget):
         self.slider_label_frame.raise_()  # Asegura que el frame del slider esté siempre en primer plano
 
         # Asegúrate de llamar a self.raise_slider_labels() después de cualquier operación que afecte la visibilidad
-        self.labelViewer.imageLoaded.connect(
-            self.raise_slider_labels)  # Suponiendo que imageLoaded es una señal emitida después de cargar la imagen
+        self.labelViewer.imageLoaded.connect(self.raise_slider_labels)  # Suponiendo que imageLoaded es una señal emitida después de cargar la imagen
 
         # Slider label setup
         self.slider_label = QLabel(self.slider_label_frame)
@@ -463,8 +458,7 @@ class MainWindow(QWidget):
         self.zpl_textedit = CustomTextEdit()
         self.zpl_textedit.setPlaceholderText("Ingrese el ZPL aquí...")
         self.zpl_textedit.textChanged.connect(self.validate_and_update_copies_from_zpl)
-        self.zpl_textedit.textPasted.connect(
-            lambda: self.search_bar.setText(""))  # Conectar la señal al método adecuado
+        self.zpl_textedit.textPasted.connect(lambda: self.search_bar.setText(""))  # Conectar la señal al método adecuado
         zpl_layout.addWidget(self.zpl_textedit)
 
         # Configurar botones para el ZPL input/impresora
@@ -723,9 +717,7 @@ class MainWindow(QWidget):
 
         # Establecer el ícono solo en el ítem seleccionado
         if index != 0:  # Asumiendo que el índice 0 es "Seleccione una impresora"
-            (self.label_size_selector.setItemIcon(index,
-                                                  QIcon(
-                                                      os.fspath(BASE_ASSETS_PATH / "icons" / "badge_blue_check.svg"))))
+            (self.label_size_selector.setItemIcon(index, QIcon(os.fspath(BASE_ASSETS_PATH / "icons" / "badge_blue_check.svg"))))
 
     def increment(self):
         self.copies_entry.incrementValue()
@@ -758,8 +750,7 @@ class MainWindow(QWidget):
         self.slider_label.setText(str(value))
         slider_pos = self.delay_slider.pos()
         slider_length = self.delay_slider.width()
-        slider_value = (value - self.delay_slider.minimum()) / (
-                self.delay_slider.maximum() - self.delay_slider.minimum())
+        slider_value = (value - self.delay_slider.minimum()) / (self.delay_slider.maximum() - self.delay_slider.minimum())
         slider_offset = int(slider_length * slider_value - self.slider_label_frame.width() / 2)
         self.slider_label_frame.move(slider_pos.x() + slider_offset, slider_pos.y() - 40)
         self.slider_label_frame.show()
@@ -851,11 +842,7 @@ class MainWindow(QWidget):
             if image_urls:
                 self.carousel.set_images(image_urls)
                 self.carousel.show_carousel(parent_geometry=self.geometry())
-                self.set_status_message(
-                    f"Se encontraron {len(image_urls)} imágenes",
-                    duration=3,
-                    color="#28A745"
-                )
+                self.set_status_message(f"Se encontraron {len(image_urls)} imágenes", duration=3, color="#28A745")
             else:
                 self.set_status_message(
                     "No se encontraron imágenes del producto",

@@ -1,11 +1,13 @@
 # zpl_worker.py
 from PyQt5.QtCore import QObject, QRunnable, pyqtSignal, pyqtSlot
 
+
 class ZplWorkerSignals(QObject):
     finished = pyqtSignal(object, str)
     # Podríamos emitir dos cosas:
     #  - El 'item' (dict) devuelto por la API
     #  - El ZPL modificado (str) o lo que necesites devolver
+
 
 class ZplWorker(QRunnable):
     def __init__(self, api, inventory_id, query_params, new_zpl_text):

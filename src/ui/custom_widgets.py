@@ -3,7 +3,7 @@ import os
 from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, QUrl, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt5.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget, QComboBox, QListView
+from PyQt5.QtWidgets import QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
 from config import BASE_ASSETS_PATH
 from font_config import FontManager
@@ -58,6 +58,7 @@ class CustomSearchBar(QLineEdit):
     #     # Si quieres, puedes setear aquí el texto al QLineEdit
     #     self.setText(text)
 
+
 class CustomComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -85,6 +86,7 @@ class CustomComboBox(QComboBox):
                         print("Click en ítem deshabilitado, ignorando...")
                         return True
         return super().eventFilter(source, event)
+
 
 class SpinBoxWidget(QWidget):
     valueChanged = pyqtSignal(int)  # Definir una nueva señal que pasa el valor actual
@@ -570,11 +572,11 @@ class HoverZoomWindow(QWidget):
         max_scale = max(self.scale_x, self.scale_y)
         zoom_size = round(40 * max_scale)
         print(zoom_size // 2)
-        # print(f"{self.original_width}; {self.original_height}")
-        # print(f"QRECT ===== {pos.x()}, {pos.y()}")
-        # print(f"Max_X = {max(0, pos.x())}")
-        # print(f"Max_Y = {max(0, pos.y())}")
-        # print(f"ScaleX: {self.scale_x}; ScakeY: {self.scale_y}")
+        print(f"{self.original_width}; {self.original_height}")
+        print(f"QRECT ===== {pos.x()}, {pos.y()}")
+        print(f"Max_X = {max(0, pos.x())}")
+        print(f"Max_Y = {max(0, pos.y())}")
+        print(f"ScaleX: {self.scale_x}; ScakeY: {self.scale_y}")
         source_rect = QRect(
             round(max(0, pos.x()) * self.scale_x),
             round(max(0, pos.y()) * self.scale_y),
