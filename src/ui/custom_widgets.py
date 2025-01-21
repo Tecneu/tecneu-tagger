@@ -1,6 +1,6 @@
 import os
 
-from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, QUrl, pyqtSignal
+from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, QUrl, pyqtSignal, QPropertyAnimation, pyqtProperty, QEasingCurve
 from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QTextEdit, QVBoxLayout, QWidget
@@ -586,3 +586,84 @@ class HoverZoomWindow(QWidget):
 
         zoomed_pixmap = self.pixmap.copy(source_rect).scaled(self.w, self.h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.zoom_label.setPixmap(zoomed_pixmap)
+
+class ToggleSwitch(QWidget):
+    """
+    Un switch tipo iOS. Emite señales on/off al hacer clic.
+    Internamente actúa como un 'checkbox'.
+    """
+    toggled = pyqtSignal(bool)  # <--- Señal que emite el estado checked
+
+    def __init__(self, parent=None, checked=False):
+        super().__init__(parent)
+        self.setFixedSize(60, 30)
+        self._checked = checked
+        self._circle_position = 3 if not checked else 32
+        self._animation = QPropertyAnimation(self, b"circle_position", self)
+        self._animation.setEasingCurve(QEasingCurve.OutQuad)
+        self._animation.setDuration(200)
+
+        # Habilitar el mouse
+        self.setCursor(Qt.PointingHandCursor)
+
+    def paintEvent(self, event):
+        """
+        Dibuja el fondo (switch) y la perilla (círculo).
+        """
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        # Fondo
+        if self._checked:
+            p.setBrush(QBrush(QColor("#4cd964")))  # color ON (verde)
+        else:
+            p.setBrush(QBrush(QColor("#c2c2c2")))  # color OFF (gris)
+        p.setPen(Qt.NoPen)
+        rect = self.rect()
+        p.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
+
+        # Perilla (círculo)
+        p.setBrush(QBrush(QColor("#ffffff")))
+        circle_rect = QRect(self._circle_position, 3, 24, 24)
+        p.drawEllipse(circle_rect)
+        p.end()
+
+    def mousePressEvent(self, event):
+        """
+        Al hacer clic, invertimos el estado (checked).
+        """
+        if event.button() == Qt.LeftButton:
+            self.setChecked(not self._checked)
+        super().mousePressEvent(event)
+
+    def isChecked(self):
+        return self._checked
+
+    def setChecked(self, state):
+        """
+        Actualiza el estado y lanza la animación de la perilla.
+        """
+        self._checked = state
+        start = self._circle_position
+        end = 32 if self._checked else 3
+        self._animation.stop()
+        self._animation.setStartValue(start)
+        self._animation.setEndValue(end)
+        self._animation.start()
+
+        # Emitir la señal con el nuevo estado
+        self.toggled.emit(self._checked)
+
+        self.update()
+
+    @pyqtProperty(int)
+    def circle_position(self):
+        return self._circle_position
+
+    @circle_position.setter
+    def circle_position(self, pos):
+        """
+        Este setter se usa internamente por la animación.
+        """
+        self._circle_position = pos
+        self.update()

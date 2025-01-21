@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import sys
 
 from PyQt5.QtCore import QSettings, QSize, Qt, QThreadPool, QTimer
 from PyQt5.QtGui import QColor, QIcon, QMovie, QPixmap, QStandardItem, QStandardItemModel
@@ -28,7 +29,7 @@ from utils import list_printers_to_json
 from workers.search_by_zpl_worker import ZplWorker
 from workers.search_worker import SearchWorker
 
-from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget
+from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget, ToggleSwitch
 from .zpl_preview import LabelViewer
 
 __all__ = ["MainWindow"]
@@ -533,6 +534,10 @@ class MainWindow(QWidget):
         )
         self.paste_zpl_button.clicked.connect(self.paste_from_clipboard)
         zpl_buttons_layout.addWidget(self.paste_zpl_button)
+
+        self.toggle_button = ToggleSwitch(checked=False)
+        self.toggle_button.toggled.connect(self.toggle_always_on_top)
+        zpl_buttons_layout.addWidget(self.toggle_button)
 
         zpl_layout.addLayout(zpl_buttons_layout)
 
@@ -1221,6 +1226,24 @@ class MainWindow(QWidget):
             self.print_thread.stopped = False
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setValue("0")
+
+    def toggle_always_on_top(self, checked):
+        """
+        Activa o desactiva el modo 'Always on Top'.
+        """
+        print(f"checked=> {checked}")
+
+        flags = self.windowFlags()
+
+        if checked:
+            # Activar "Always on Top"
+            flags |= Qt.WindowStaysOnTopHint
+        else:
+            # Desactivar "Always on Top"
+            flags &= ~Qt.WindowStaysOnTopHint
+
+        self.setWindowFlags(flags)
+        self.show()  # Es necesario volver a mostrar la ventana para que el cambio surta efecto.
 
     def closeEvent(self, event):
         # Guardar el nombre de la impresora seleccionada
