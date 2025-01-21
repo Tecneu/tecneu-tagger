@@ -572,7 +572,7 @@ class MainWindow(QWidget):
         toggle_widget.setMinimumWidth(75)  # ancho mínimo 60px
 
         # 3) Creamos el ToggleSwitch y el QLabel
-        self.toggle_button = ToggleSwitch(width=54, height=22, checked=False)
+        self.toggle_button = ToggleSwitch(width=54, height=22, checked=True)
         self.toggle_label = QLabel("Fijar ventana")  # Estado inicial (OFF)
         font = self.toggle_label.font()
         font.setPointSize(8)  # tamaño de letra más pequeño
@@ -607,17 +607,13 @@ class MainWindow(QWidget):
         self.open_sound_player = QMediaPlayer()
         self.close_sound_player = QMediaPlayer()
 
-        # Configurar la ruta a los archivos MP3 (asumiendo que "assets/sounds/" está 2 niveles arriba)
-        # base_path = os.path.dirname(os.path.dirname(__file__))  # subimos un nivel desde 'src' a 'my_app'
-        # sounds_path = os.path.join(base_path, 'assets', 'sounds')
-        #
-        # os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")
-        # open_sound_file = os.path.join(sounds_path, 'open_menu.mp3')
-        # close_sound_file = os.path.join(sounds_path, 'close_menu.mp3')
-
         # Asignar la fuente al QMediaPlayer
         self.open_sound_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.fspath(BASE_ASSETS_PATH / "sounds" / "open_menu.mp3"))))
         self.close_sound_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.fspath(BASE_ASSETS_PATH / "sounds" / "close_menu.mp3"))))
+
+        # 4) Si el toggle inicia en True, forzamos la ejecución de 'toggle_always_on_top(True)'
+        if self.toggle_button.isChecked():
+            self.toggle_always_on_top(True, False)
 
     def reset_all(self, include_search_bar=True, include_zpl_textedit=True):
         self.carousel.hide_carousel()
@@ -1297,16 +1293,17 @@ class MainWindow(QWidget):
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setValue("0")
 
-    def toggle_always_on_top(self, checked):
+    def toggle_always_on_top(self, checked, play_sound=True):
         """
         Aplica el modo 'Always on Top' en Windows con llamadas nativas.
         En otras plataformas podrías usar setWindowFlags como fallback.
         """
-        # Reproducir sonido
-        if checked:
-            self.open_sound_player.play()  # Sonido cuando se activa
-        else:
-            self.close_sound_player.play()  # Sonido cuando se desactiva
+        # Reproducir sonido SOLO si play_sound es True
+        if play_sound:
+            if checked:
+                self.open_sound_player.play()  # Sonido cuando se activa
+            else:
+                self.close_sound_player.play()  # Sonido cuando se desactiva
 
         if sys.platform == "win32":
             # Obtenemos el HWND
