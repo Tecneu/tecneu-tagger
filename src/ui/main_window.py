@@ -570,13 +570,15 @@ class MainWindow(QWidget):
             )
             return
 
-        copies_str = self.copies_entry.text()
+        self.copies_entry.setValue("0")
+        # copies_str = self.copies_entry.text()
 
         index = self.label_size_selector.currentIndex()
         label_size = self.label_size_selector.itemData(index, Qt.UserRole)
         query_params = {
             "label_size": label_size,
-            "qty": copies_str if copies_str.isdigit() else "0",
+            # "qty": copies_str if copies_str.isdigit() else "0",
+            "qty": "0",
         }
 
         self.reset_all(False)
