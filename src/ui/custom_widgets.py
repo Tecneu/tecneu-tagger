@@ -1,6 +1,6 @@
 import os
 
-from PyQt5.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer, QUrl, pyqtSignal, QPropertyAnimation, pyqtProperty, QEasingCurve
+from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, QUrl, pyqtProperty, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QTextEdit, QVBoxLayout, QWidget
@@ -587,11 +587,13 @@ class HoverZoomWindow(QWidget):
         zoomed_pixmap = self.pixmap.copy(source_rect).scaled(self.w, self.h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.zoom_label.setPixmap(zoomed_pixmap)
 
+
 class ToggleSwitch(QWidget):
     """
     Un switch tipo iOS. Emite señales on/off al hacer clic.
     Internamente actúa como un 'checkbox'.
     """
+
     toggled = pyqtSignal(bool)  # <--- Señal que emite el estado checked
 
     def __init__(self, parent=None, checked=False):
@@ -613,19 +615,40 @@ class ToggleSwitch(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
 
-        # Fondo
-        if self._checked:
-            p.setBrush(QBrush(QColor("#4cd964")))  # color ON (verde)
-        else:
-            p.setBrush(QBrush(QColor("#c2c2c2")))  # color OFF (gris)
-        p.setPen(Qt.NoPen)
         rect = self.rect()
+
+        # 1. Dibujar fondo
+        if self._checked:
+            background_color = QColor("#4cd964")  # color ON (verde)
+        else:
+            background_color = QColor("#c2c2c2")  # color OFF (gris)
+
+        p.setBrush(QBrush(background_color))
+        p.setPen(Qt.NoPen)
         p.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
 
-        # Perilla (círculo)
+        # 2. Dibujar texto “grabado”
+        #    - Lo hacemos en un color un poco más oscuro que el fondo
+        #      para simular que está “hundido” en el mismo color.
+        text_color = background_color.darker(120)
+        p.setPen(text_color)
+
+        font = p.font()
+        font.setPointSize(8)  # Texto pequeño
+        p.setFont(font)
+
+        if self._checked:
+            # Dibujar "ON" a la izquierda, con un poco de margen
+            p.drawText(rect.adjusted(8, 0, -8, 0), Qt.AlignVCenter | Qt.AlignLeft, "ON")
+        else:
+            # Dibujar "OFF" a la derecha, con un poco de margen
+            p.drawText(rect.adjusted(8, 0, -8, 0), Qt.AlignVCenter | Qt.AlignRight, "OFF")
+
+        # 3. Dibujar la perilla (el círculo blanco)
         p.setBrush(QBrush(QColor("#ffffff")))
         circle_rect = QRect(self._circle_position, 3, 24, 24)
         p.drawEllipse(circle_rect)
+
         p.end()
 
     def mousePressEvent(self, event):
@@ -643,7 +666,10 @@ class ToggleSwitch(QWidget):
         """
         Actualiza el estado y lanza la animación de la perilla.
         """
+        if self._checked == state:
+            return
         self._checked = state
+
         start = self._circle_position
         end = 32 if self._checked else 3
         self._animation.stop()

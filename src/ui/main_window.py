@@ -535,9 +535,37 @@ class MainWindow(QWidget):
         self.paste_zpl_button.clicked.connect(self.paste_from_clipboard)
         zpl_buttons_layout.addWidget(self.paste_zpl_button)
 
+        # Creamos un contenedor QWidget con un layout vertical
+        toggle_widget = QWidget()
+        toggle_layout = QVBoxLayout(toggle_widget)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
+        toggle_layout.setSpacing(0)
+
+        # 2) Ajustamos las restricciones de tamaño del contenedor
+        toggle_widget.setMaximumHeight(40)  # altura máxima 30px
+        toggle_widget.setMinimumWidth(75)  # ancho mínimo 60px
+
+        # 3) Creamos el ToggleSwitch y el QLabel
         self.toggle_button = ToggleSwitch(checked=False)
+        self.toggle_label = QLabel("Fijar ventana")  # Estado inicial (OFF)
+        font = self.toggle_label.font()
+        font.setPointSize(8)  # tamaño de letra más pequeño
+        self.toggle_label.setFont(font)
+
+        # 4) Ajustamos el modo de “encogimiento/expansión” de cada widget
+        #    para que puedan adaptarse al contenedor
+        self.toggle_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.toggle_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # 5) Añadimos los widgets al layout, centrados
+        toggle_layout.addWidget(self.toggle_button, 0, Qt.AlignCenter)
+        toggle_layout.addWidget(self.toggle_label, 0, Qt.AlignCenter)
+
+        # 6) Conectamos la señal del toggle a la lógica “Always On Top”
         self.toggle_button.toggled.connect(self.toggle_always_on_top)
-        zpl_buttons_layout.addWidget(self.toggle_button)
+
+        # 7) Finalmente, insertamos el 'toggle_widget' en tu layout principal
+        zpl_buttons_layout.addWidget(toggle_widget)
 
         zpl_layout.addLayout(zpl_buttons_layout)
 
@@ -1238,9 +1266,11 @@ class MainWindow(QWidget):
         if checked:
             # Activar "Always on Top"
             flags |= Qt.WindowStaysOnTopHint
+            self.toggle_label.setText("Ventana fijada")
         else:
             # Desactivar "Always on Top"
             flags &= ~Qt.WindowStaysOnTopHint
+            self.toggle_label.setText("Fijar ventana")
 
         self.setWindowFlags(flags)
         self.show()  # Es necesario volver a mostrar la ventana para que el cambio surta efecto.

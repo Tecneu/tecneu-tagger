@@ -43,19 +43,29 @@
    - Seleccionar Content Root (Directorio raíz del proyecto:
    ![img_1.png](img_1.png)
 
-2. **Actualizar dependencias necesarias para el proyecto**
+2. **Instala Black, para aplicar formato desde Intellij**
+   - Instala black con su daemon, fuera del proyecto (en la version de python global asignada por pyenv):
+   ```bash
+   pip install black[d]
+   ```
+   - Instala el plugin BlackConnect y accede a su configuración `File > Settings... > Tools > BlackConnect`, asigna el local instance con el path especifico, por ejemplo:
+   ```bash
+   C:\Users\%USERPROFILE%\.pyenv\pyenv-win\shims\blackd.bat
+   ```
+   
+3. **Actualizar dependencias necesarias para el proyecto**
    ```bash
    pip freeze > requirements.txt
    
-3. **Regenera el lock (opcional si cambias a un Pipfile)**
+4. **Regenera el lock (opcional si cambias a un Pipfile)**
    - Tras editar el Pipfile, ejecuta `pipenv lock`.
    - Luego vuelve a instalar: `pipenv install`
    
-4. **Crear ejecutable**
+5. **Crear ejecutable**
     - Con instrucciones de .spec (Recomendable): `pyinstaller main.spec`
     - Ejecutable inline con icono: `pyinstaller --onefile --windowed --icon=assets/logos/tecneu-logo.ico main.spec`
 
-5. **Ejecutar Tests (`test`)**
+6. **Ejecutar Tests (`test`)**
    -  Usa pytest y pytest-qt para probar la aplicación y widgets de PyQt.
    - Comando:
    ```bash
