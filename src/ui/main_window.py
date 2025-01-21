@@ -1,10 +1,13 @@
+import ctypes
 import json
 import os
 import re
 import sys
+from ctypes import wintypes
 
-from PyQt5.QtCore import QSettings, QSize, Qt, QThreadPool, QTimer
+from PyQt5.QtCore import QSettings, QSize, Qt, QThreadPool, QTimer, QUrl
 from PyQt5.QtGui import QColor, QIcon, QMovie, QPixmap, QStandardItem, QStandardItemModel
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import (
     QApplication,
     QComboBox,
@@ -31,6 +34,29 @@ from workers.search_worker import SearchWorker
 
 from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget, ToggleSwitch
 from .zpl_preview import LabelViewer
+
+user32 = ctypes.windll.user32
+
+# Declaramos la firma de SetWindowPos
+# https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos
+SetWindowPos = user32.SetWindowPos
+SetWindowPos.argtypes = [
+    wintypes.HWND,  # hWnd
+    wintypes.HWND,  # hWndInsertAfter
+    wintypes.INT,  # X
+    wintypes.INT,  # Y
+    wintypes.INT,  # cx
+    wintypes.INT,  # cy
+    wintypes.UINT,  # uFlags
+]
+SetWindowPos.restype = wintypes.BOOL
+
+HWND_TOPMOST = -1
+HWND_NOTOPMOST = -2
+
+SWP_NOMOVE = 0x0002
+SWP_NOSIZE = 0x0001
+SWP_NOACTIVATE = 0x0010
 
 __all__ = ["MainWindow"]
 
@@ -546,7 +572,7 @@ class MainWindow(QWidget):
         toggle_widget.setMinimumWidth(75)  # ancho mínimo 60px
 
         # 3) Creamos el ToggleSwitch y el QLabel
-        self.toggle_button = ToggleSwitch(checked=False)
+        self.toggle_button = ToggleSwitch(width=54, height=22, checked=False)
         self.toggle_label = QLabel("Fijar ventana")  # Estado inicial (OFF)
         font = self.toggle_label.font()
         font.setPointSize(8)  # tamaño de letra más pequeño
@@ -576,6 +602,22 @@ class MainWindow(QWidget):
         self.carousel = ImageCarousel(self)
 
         self.setLayout(main_layout)
+
+        # Instancias QMediaPlayer para reproducir mp3
+        self.open_sound_player = QMediaPlayer()
+        self.close_sound_player = QMediaPlayer()
+
+        # Configurar la ruta a los archivos MP3 (asumiendo que "assets/sounds/" está 2 niveles arriba)
+        # base_path = os.path.dirname(os.path.dirname(__file__))  # subimos un nivel desde 'src' a 'my_app'
+        # sounds_path = os.path.join(base_path, 'assets', 'sounds')
+        #
+        # os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")
+        # open_sound_file = os.path.join(sounds_path, 'open_menu.mp3')
+        # close_sound_file = os.path.join(sounds_path, 'close_menu.mp3')
+
+        # Asignar la fuente al QMediaPlayer
+        self.open_sound_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.fspath(BASE_ASSETS_PATH / "sounds" / "open_menu.mp3"))))
+        self.close_sound_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.fspath(BASE_ASSETS_PATH / "sounds" / "close_menu.mp3"))))
 
     def reset_all(self, include_search_bar=True, include_zpl_textedit=True):
         self.carousel.hide_carousel()
@@ -1257,23 +1299,41 @@ class MainWindow(QWidget):
 
     def toggle_always_on_top(self, checked):
         """
-        Activa o desactiva el modo 'Always on Top'.
+        Aplica el modo 'Always on Top' en Windows con llamadas nativas.
+        En otras plataformas podrías usar setWindowFlags como fallback.
         """
-        print(f"checked=> {checked}")
-
-        flags = self.windowFlags()
-
+        # Reproducir sonido
         if checked:
-            # Activar "Always on Top"
-            flags |= Qt.WindowStaysOnTopHint
-            self.toggle_label.setText("Ventana fijada")
+            self.open_sound_player.play()  # Sonido cuando se activa
         else:
-            # Desactivar "Always on Top"
-            flags &= ~Qt.WindowStaysOnTopHint
-            self.toggle_label.setText("Fijar ventana")
+            self.close_sound_player.play()  # Sonido cuando se desactiva
 
-        self.setWindowFlags(flags)
-        self.show()  # Es necesario volver a mostrar la ventana para que el cambio surta efecto.
+        if sys.platform == "win32":
+            # Obtenemos el HWND
+            hwnd = self.winId().__int__()  # Convertir PyQt handle a int
+
+            if checked:
+                # Colocar en topmost
+                SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+                self.toggle_label.setText("Ventana fijada")
+            else:
+                # Quitar topmost
+                SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+                self.toggle_label.setText("Fijar ventana")
+        else:
+            # Fallback para macOS / Linux
+            # O simplemente conserva tu lógica anterior con setWindowFlags
+            flags = self.windowFlags()
+            if checked:
+                # Activar "Always on Top"
+                flags |= Qt.WindowStaysOnTopHint
+                self.toggle_label.setText("Ventana fijada")
+            else:
+                # Desactivar "Always on Top"
+                flags &= ~Qt.WindowStaysOnTopHint
+                self.toggle_label.setText("Fijar ventana")
+            self.setWindowFlags(flags)
+            self.show()
 
     def closeEvent(self, event):
         # Guardar el nombre de la impresora seleccionada

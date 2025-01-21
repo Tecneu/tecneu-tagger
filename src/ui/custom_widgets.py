@@ -1,7 +1,7 @@
 import os
 
 from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, QUrl, pyqtProperty, pyqtSignal
-from PyQt5.QtGui import QBrush, QColor, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
+from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
@@ -596,21 +596,46 @@ class ToggleSwitch(QWidget):
 
     toggled = pyqtSignal(bool)  # <--- Señal que emite el estado checked
 
-    def __init__(self, parent=None, checked=False):
+    def __init__(self, parent=None, width=60, height=30, checked=False):
+        """
+        :param width: Ancho total del toggle en pixeles.
+        :param height: Alto total del toggle en pixeles.
+        :param checked: Estado inicial (True = ON, False = OFF).
+        """
         super().__init__(parent)
-        self.setFixedSize(60, 30)
+        # Guardamos ancho y alto
+        self._width = width
+        self._height = height
+
+        # Fijamos el tamaño total del widget
+        self.setFixedSize(self._width, self._height)
+
+        # Estado inicial
         self._checked = checked
-        self._circle_position = 3 if not checked else 32
+
+        # Cálculos para el círculo:
+        # Dejar un margen de 3px en la parte superior e inferior
+        # => el diámetro del círculo será (altura - 6)
+        self._circle_size = self._height - 6
+
+        # Posiciones “apagado” (OFF) y “encendido” (ON)
+        self._off_position = 3
+        self._on_position = self._width - self._circle_size - 3
+
+        # Determinamos la posición inicial del círculo según el estado
+        self._circle_position = self._on_position if self._checked else self._off_position
+
+        # Animación suave del círculo
         self._animation = QPropertyAnimation(self, b"circle_position", self)
         self._animation.setEasingCurve(QEasingCurve.OutQuad)
         self._animation.setDuration(200)
 
-        # Habilitar el mouse
+        # Cambiamos el cursor a “manita” sobre el toggle
         self.setCursor(Qt.PointingHandCursor)
 
     def paintEvent(self, event):
         """
-        Dibuja el fondo (switch) y la perilla (círculo).
+        Dibuja el fondo, el texto grabado ON/OFF y la perilla (círculo).
         """
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
@@ -625,6 +650,7 @@ class ToggleSwitch(QWidget):
 
         p.setBrush(QBrush(background_color))
         p.setPen(Qt.NoPen)
+        # RoundedRect con radios equivalentes a la mitad de la altura
         p.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
 
         # 2. Dibujar texto “grabado”
@@ -633,7 +659,8 @@ class ToggleSwitch(QWidget):
         text_color = background_color.darker(120)
         p.setPen(text_color)
 
-        font = p.font()
+        # font = p.font()
+        font = QFont()
         font.setPointSize(8)  # Texto pequeño
         p.setFont(font)
 
@@ -646,7 +673,7 @@ class ToggleSwitch(QWidget):
 
         # 3. Dibujar la perilla (el círculo blanco)
         p.setBrush(QBrush(QColor("#ffffff")))
-        circle_rect = QRect(self._circle_position, 3, 24, 24)
+        circle_rect = QRect(self._circle_position, 3, self._circle_size, self._circle_size)
         p.drawEllipse(circle_rect)
 
         p.end()
@@ -671,7 +698,7 @@ class ToggleSwitch(QWidget):
         self._checked = state
 
         start = self._circle_position
-        end = 32 if self._checked else 3
+        end = self._on_position if self._checked else self._off_position
         self._animation.stop()
         self._animation.setStartValue(start)
         self._animation.setEndValue(end)
