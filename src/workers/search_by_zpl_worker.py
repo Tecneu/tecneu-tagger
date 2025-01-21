@@ -2,7 +2,7 @@
 from PyQt5.QtCore import QObject, QRunnable, pyqtSignal, pyqtSlot
 
 class ZplWorkerSignals(QObject):
-    finished = pyqtSignal(dict, str)
+    finished = pyqtSignal(object, str)
     # Podríamos emitir dos cosas:
     #  - El 'item' (dict) devuelto por la API
     #  - El ZPL modificado (str) o lo que necesites devolver
@@ -30,5 +30,5 @@ class ZplWorker(QRunnable):
         else:
             final_zpl = self.new_zpl_text
 
-        # 3) Emitimos la señal con el 'item' y el ZPL final que se usará
+        # 3) Emitimos la señal con el 'item' (que podría ser None) y el ZPL
         self.signals.finished.emit(item, final_zpl)

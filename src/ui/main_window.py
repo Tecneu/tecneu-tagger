@@ -838,6 +838,7 @@ class MainWindow(QWidget):
 
             # Ajusta el ZPL para previsualizar con 1 copia
             new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
+            print("ACTUALIZA PREVIEW LABEL=> parse_zpl_and_update_ui")
             self.labelViewer.preview_label(new_zpl_text)
 
     def use_item_data(self, item):
@@ -946,6 +947,7 @@ class MainWindow(QWidget):
         self.use_item_data(item)
 
         # Actualiza la vista previa con el ZPL modificado
+        print("ACTUALIZA PREVIEW LABEL: handle_zpl_worker_result")
         self.labelViewer.preview_label(new_zpl_text)
 
         # Liberamos el flag

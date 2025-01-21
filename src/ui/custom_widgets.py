@@ -561,7 +561,7 @@ class HoverZoomWindow(QWidget):
         self.scaled_h = (self.h / 100) * self.original_height
         self.scale_x = self.scaled_w / self.w
         self.scale_y = self.scaled_h / self.h
-        print(f"HOLAA=== {self.scale_x}; {self.scale_y}")
+        # print(f"HOLAA=== {self.scale_x}; {self.scale_y}")
         # self.update_zoom(QPoint(50, 50))
         # self.update_zoom(QPoint(50, 50), 1, 1)
 
@@ -570,11 +570,11 @@ class HoverZoomWindow(QWidget):
         max_scale = max(self.scale_x, self.scale_y)
         zoom_size = round(40 * max_scale)
         print(zoom_size // 2)
-        print(f"{self.original_width}; {self.original_height}")
-        print(f"QRECT ===== {pos.x()}, {pos.y()}")
-        print(f"Max_X = {max(0, pos.x())}")
-        print(f"Max_Y = {max(0, pos.y())}")
-        print(f"ScaleX: {self.scale_x}; ScakeY: {self.scale_y}")
+        # print(f"{self.original_width}; {self.original_height}")
+        # print(f"QRECT ===== {pos.x()}, {pos.y()}")
+        # print(f"Max_X = {max(0, pos.x())}")
+        # print(f"Max_Y = {max(0, pos.y())}")
+        # print(f"ScaleX: {self.scale_x}; ScakeY: {self.scale_y}")
         source_rect = QRect(
             round(max(0, pos.x()) * self.scale_x),
             round(max(0, pos.y()) * self.scale_y),

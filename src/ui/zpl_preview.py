@@ -18,8 +18,12 @@ class LabelViewer(QWidget):
     def __init__(self):
         super().__init__()
         self.init_ui()
-        self.last_zpl = ""  # Almacena la última versión del ZPL relevante
-        self.last_load_successful = True  # Índica si la última carga fue exitosa
+        # Último ZPL "relevante" (sin ^PQ) que cargamos
+        self.last_zpl = ""
+        # Indicador de si la última carga fue exitosa
+        self.last_load_successful = False
+        # Último pixmap generado con éxito
+        self.last_pixmap = None
 
     def init_ui(self):
         self.setWindowTitle("Label Preview")
@@ -63,72 +67,114 @@ class LabelViewer(QWidget):
         self.timer.timeout.connect(self.hide_spinner)
 
     def preview_label(self, zpl_label):
+        """
+       Muestra (o recarga) una vista previa para el ZPL dado.
+       Si el ZPL (sin ^PQ) es igual al último cargado y la última carga fue exitosa,
+       se reutiliza la imagen anterior para evitar llamar de nuevo a Labelary.
+       """
         current_zpl = self._strip_pq(zpl_label)  # Obtener ZPL sin información de cantidad
-        if current_zpl != self.last_zpl or not self.last_load_successful:
-            self.last_zpl = current_zpl
-            self._start_loading(zpl_label)
+        # 1) Comprobamos si es el mismo ZPL que ya se cargó exitosamente
+        if (current_zpl == self.last_zpl
+                and self.last_load_successful
+                and self.last_pixmap is not None):
+            # Asegurarnos de ocultar el spinner
+            self.hide_spinner()
+            # Reutilizar la última imagen
+            self.label.setPixmap(self.last_pixmap)
+            self.label.adjustSize()
+            return
+
+        # 2) Si es un ZPL nuevo o la última carga falló, procedemos a llamar a la API
+        self.last_zpl = current_zpl
+        self._start_loading(zpl_label)
 
     def _start_loading(self, zpl_label):
-        # Mostrar el spinner y empezar el temporizador
+        """
+        Muestra el spinner y lanza la carga de la imagen en un hilo aparte.
+        Resetea flags e imagen, para indicar que estamos intentando una nueva carga.
+        """
+        # Marcar que (todavía) no tenemos éxito ni pixmap para este nuevo ZPL
+        self.last_load_successful = False
+        self.last_pixmap = None
+
+        # Mostrar el spinner y su animación
         self.layout.setCurrentWidget(self.spinner)
         self.spinner.setVisible(True)
         self.spinner_movie.start()
         self.timer.start()
 
-        # Limpiar la etiqueta anterior y preparar para mostrar la imagen
+        # Limpiar la etiqueta anterior
         self.label.clear()
 
-        # Ejecutar la carga de la imagen en un hilo separado para no bloquear la GUI
+        # Iniciar un thread que cargue la imagen
         threading.Thread(target=self.load_image, args=(zpl_label,), daemon=True).start()
 
     def _strip_pq(self, zpl_code):
-        # Elimina la información de cantidad de copias (PQ) del ZPL para comparaciones
+        """
+        Elimina la parte de ^PQ...,...,...,... para normalizar el ZPL
+        y así comparar si el contenido relevante ha cambiado.
+        """
+        # Captura ^PQ con uno o más dígitos, seguidos de coma, etc.
+        # Ejemplo: ^PQ10,0,0,N
         return re.sub(r"\^PQ\d+,\d+,\d+,\w", "", zpl_code)
 
-    def load_and_display_image(self, zpl_label):
-        # Calcular las dimensiones dentro del hilo para evitar condiciones de carrera
-        dimensions = self.estimate_zpl_dimensions(zpl_label)
-        label_size = f"{round(dimensions[0], 2)}x{round(dimensions[1], 2)}"
-        image_data = get_image_from_zpl(zpl_label, label_size)
-
-        # Postear un evento personalizado o usar signals para actualizar la interfaz de usuario de forma segura
-        if image_data:
-            # Asegurarse de que la actualización de la UI se haga en el hilo principal
-            QApplication.instance().postEvent(self, ImageLoadedEvent(image_data))
-        else:
-            QApplication.instance().postEvent(self, ImageLoadedEvent(None))
-
     def load_image(self, zpl_label):
+        """
+        Llama a la API de Labelary (o similar) para obtener la imagen PNG de un ZPL.
+        Luego, postea un evento custom con los datos obtenidos para actualizar la UI.
+        """
         zpl_label = normalize_zpl(zpl_label)
         dimensions = self.estimate_zpl_dimensions(zpl_label)
         label_size = f"{round(dimensions[0], 2)}x{round(dimensions[1], 2)}"
         image_data = get_image_from_zpl(zpl_label, label_size)
         if image_data:
+            # Marcamos que sí fue exitosa
             self.last_load_successful = True
             self.imageLoaded.emit(True, "Imagen cargada correctamente.")
         else:
-            # Si la carga falla, prepara para un nuevo intento
+            # Si la carga falla, preparamos para un nuevo intento
             self.last_load_successful = False
             self.imageLoaded.emit(False, "Error al cargar la imagen.")
 
-        # Ejecutar la actualización de la UI en el hilo principal
+        # PostEvent para que la carga del pixmap se haga en el hilo principal
         QApplication.instance().postEvent(self, ImageLoadedEvent(image_data))
 
     def customEvent(self, event):
-        # Este método se llama cuando 'postEvent' envía datos al hilo principal
+        """
+        Recibe la imagen en el hilo principal y actualiza la interfaz.
+        """
         if isinstance(event, ImageLoadedEvent):
+            print("ENTRA POR ACA ============")
+            print(event)
             if event.image_data:
+                # pixmap = QPixmap()
+                # self.last_pixmap = pixmap  # Guardar el QPixmap para reuso
+                # self.label.setPixmap(pixmap)
+                # self.label.adjustSize()
                 pixmap = QPixmap()
-                pixmap.loadFromData(event.image_data)
-                self.label.setPixmap(pixmap)
-                self.label.adjustSize()
+                # Cargar los bytes de la imagen en el QPixmap
+                if pixmap.loadFromData(event.image_data):
+                    self.last_pixmap = pixmap  # Guardar el QPixmap para reuso
+                    self.label.setPixmap(pixmap)
+                    self.label.adjustSize()
+                else:
+                    # Si por alguna razón no se pudo decodificar la imagen
+                    self.last_pixmap = None
+                    self.label.setText("Error al decodificar la imagen.")
             else:
+                self.last_pixmap = None
                 self.label.setText("Error al cargar la imagen.")
 
     def clear_preview(self):
+        """
+        Limpia la vista previa, reseteando la etiqueta y mostrando un texto básico.
+        """
         self.label.clear()
         self.label.setText("No preview available.")
         self.layout.setCurrentWidget(self.label)
+        # self.last_zpl = ""
+        # self.last_load_successful = False
+        # self.last_pixmap = None
 
     def hide_spinner(self):
         # Ocultar el spinner y detener la animación
@@ -137,6 +183,9 @@ class LabelViewer(QWidget):
         self.layout.setCurrentWidget(self.label)  # Cambiar al widget de la imagen
 
     def estimate_zpl_dimensions(self, zpl_code):
+        """
+        Heurística para estimar dimensiones en pulgadas en base a algunos comandos ZPL.
+        """
         max_x = max_y = 0
         min_x = min_y = float("inf")
 
@@ -176,9 +225,11 @@ class LabelViewer(QWidget):
 
 
 def get_image_from_zpl(zpl_label, label_size):
-    # print(label_size)
-    # print(zpl_label)
-    print_density = "8dpmm"
+    """
+    Envía ZPL a Labelary para obtener PNG.
+    Retorna los bytes de la imagen si es exitoso, o None si falla.
+    """
+    print_density = "8dpmm" # 203 dpi
     url = f"http://api.labelary.com/v1/printers/{print_density}/labels/{label_size}/0"
     headers = {
         "Accept": "image/png",
@@ -194,7 +245,10 @@ def get_image_from_zpl(zpl_label, label_size):
 
 
 class ImageLoadedEvent(QEvent):
-    # Definición del evento personalizado
+    """
+    Evento personalizado para transportar la imagen desde el hilo de carga
+    al hilo principal, donde se actualiza la UI.
+    """
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
 
     def __init__(self, image_data):
