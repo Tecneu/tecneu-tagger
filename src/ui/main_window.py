@@ -6,11 +6,10 @@ import sys
 from ctypes import wintypes
 
 from PyQt5.QtCore import QSettings, QSize, Qt, QThreadPool, QTimer, QUrl
-from PyQt5.QtGui import QColor, QIcon, QMovie, QPixmap, QStandardItem, QStandardItemModel, QKeySequence
+from PyQt5.QtGui import QColor, QIcon, QKeySequence, QMovie, QPixmap, QStandardItem, QStandardItemModel
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import (
     QApplication,
-    QShortcut,
     QComboBox,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -18,6 +17,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QShortcut,
     QSizePolicy,
     QSlider,
     QSpacerItem,

@@ -1,15 +1,28 @@
 import os
 
 from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, QUrl, pyqtProperty, pyqtSignal
-from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QMovie, QPainter, QPalette, QPen, QPixmap
+from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QKeySequence, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt5.QtWidgets import QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QTextEdit, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListView,
+    QPushButton,
+    QTableWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from config import BASE_ASSETS_PATH
 from font_config import FontManager
 
 # ui/custom_widgets.py
-__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar", "CustomComboBox", "ImageCarousel", "HoverZoomWindow"]
+__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar", "CustomComboBox", "ImageCarousel", "HoverZoomWindow", "CustomTableWidget"]
 
 QApplication.processEvents()
 
@@ -720,3 +733,41 @@ class ToggleSwitch(QWidget):
         """
         self._circle_position = pos
         self.update()
+
+
+class CustomTableWidget(QTableWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def keyPressEvent(self, event):
+        if event.matches(QKeySequence.Copy):
+            self.copy_selected_cells()
+        else:
+            super().keyPressEvent(event)
+
+    def copy_selected_cells(self):
+        selected_ranges = self.selectedRanges()
+        if not selected_ranges:
+            return
+
+        copied_text = ""
+        for selected_range in selected_ranges:
+            for row in range(selected_range.topRow(), selected_range.bottomRow() + 1):
+                row_data = []
+                for col in range(selected_range.leftColumn(), selected_range.rightColumn() + 1):
+                    if col == 0:
+                        # Obtener el QLabel de la celda
+                        cell_widget = self.cellWidget(row, col)
+                        if isinstance(cell_widget, QLabel):
+                            cell_text = cell_widget.text()
+                        else:
+                            cell_text = ""
+                    else:
+                        # Obtener el texto del QTableWidgetItem
+                        item = self.item(row, col)
+                        cell_text = item.text() if item else ""
+                    row_data.append(cell_text)
+                copied_text += "\t".join(row_data) + "\n"
+
+        # Establecer el texto en el portapapeles
+        QApplication.clipboard().setText(copied_text)

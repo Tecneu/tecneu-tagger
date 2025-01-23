@@ -1,14 +1,13 @@
-from PyQt5.QtCore import Qt, QUrl, QTimer, QPoint, QSize
-from PyQt5.QtGui import QPalette, QColor, QPixmap, QMovie, QPainter, QPen, QBrush, QFont
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QTableWidgetItem, QHBoxLayout, QLabel, QHeaderView, QApplication, QSizePolicy
-from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-
 import os
+
+from PyQt5.QtCore import QPoint, QSize, Qt, QTimer, QUrl
+from PyQt5.QtGui import QBrush, QColor, QFont, QMovie, QPainter, QPalette, QPen, QPixmap
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from PyQt5.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+
 from config import BASE_ASSETS_PATH
 
-from .custom_widgets import HoverZoomWindow
-
-# spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
+from .custom_widgets import CustomTableWidget, HoverZoomWindow
 
 __all__ = ["ItemRelationshipsWindow"]
 
@@ -57,7 +56,7 @@ class ItemRelationshipsWindow(QWidget):
         # --------------------------------------------------
         # 2) QTableWidget para las relaciones (inicialmente 0 filas/0 columnas)
         # --------------------------------------------------
-        self.table = QTableWidget()
+        self.table = CustomTableWidget()
         self.main_layout.addWidget(self.table)
 
         # Altura fija inicial (puedes ajustarla si lo deseas)
@@ -81,7 +80,8 @@ class ItemRelationshipsWindow(QWidget):
         # - Texto y bordes blancos
         # - Al seleccionar: azul translúcido
         # - Encabezado horizontal también transparente
-        self.table.setStyleSheet("""
+        self.table.setStyleSheet(
+            """
             QTableWidget {
                 background-color: transparent;
                 color: white;
@@ -105,7 +105,8 @@ class ItemRelationshipsWindow(QWidget):
                 background-color: rgba(0, 0, 0, 0);
                 border: 1px solid white;
             }
-        """)
+        """
+        )
 
         # Ocultamos el encabezado vertical, ya que usaremos la 1ra columna como "Cant."
         self.table.verticalHeader().setVisible(False)
@@ -309,14 +310,15 @@ class ItemRelationshipsWindow(QWidget):
             # Guardamos _id para doble clic
             self._row_to_item_id[row_idx] = _id
 
-            # 1) QTableWidgetItem para copiar
-            plain_text = f"{qty} u."
-            copy_item = QTableWidgetItem(plain_text)
-            copy_item.setFlags(copy_item.flags() & ~Qt.ItemIsEditable)
-            # Establecer el color del texto a transparente
-            copy_item.setForeground(QBrush(QColor(0, 0, 0, 0)))  # RGB (0,0,0) con alpha=0 (transparente)
-            # copy_item.setBackground(QBrush(QColor(0, 0, 0, 0)))  # Opcional: fondo transparente
-            self.table.setItem(row_idx, 0, copy_item)
+            # # 1) QTableWidgetItem para copiar
+            # plain_text = f"{qty} u."
+            # copy_item = QTableWidgetItem(plain_text)
+            # copy_item.setTextAlignment(Qt.AlignCenter)
+            # copy_item.setFlags(copy_item.flags() & ~Qt.ItemIsEditable)
+            # # Establecer el color del texto a transparente
+            # copy_item.setForeground(QBrush(QColor(0, 0, 0, 0)))  # RGB (0,0,0) con alpha=0 (transparente)
+            # # copy_item.setBackground(QBrush(QColor(0, 0, 0, 0)))  # Opcional: fondo transparente
+            # self.table.setItem(row_idx, 0, copy_item)
 
             # 2) QLabel con HTML parcial
             html_label = QLabel()
@@ -328,12 +330,14 @@ class ItemRelationshipsWindow(QWidget):
             html_label.setText(f"<b style='font-size:14pt'>{qty}</b> u.")
 
             # Ajustar estilo
-            html_label.setStyleSheet("""
+            html_label.setStyleSheet(
+                """
                 QLabel {
                     background-color: transparent;
                     color: white;
                 }
-            """)
+            """
+            )
 
             self.table.setCellWidget(row_idx, 0, html_label)
 
@@ -341,12 +345,14 @@ class ItemRelationshipsWindow(QWidget):
             label = QLabel()
             label.setFixedSize(100, 100)
             label.setAlignment(Qt.AlignCenter)
-            label.setStyleSheet("""
+            label.setStyleSheet(
+                """
                 QLabel {
                     border: 1px solid white;
-                    background-color: transparent;
+                    background-color: white;
                 }
-            """)
+            """
+            )
             spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
             if os.path.exists(spinner_path):
                 spinner = QMovie(spinner_path)
