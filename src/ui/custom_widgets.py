@@ -1,7 +1,7 @@
 import os
 
 from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, QUrl, pyqtProperty, pyqtSignal
-from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QKeySequence, QMovie, QPainter, QPalette, QPen, QPixmap
+from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QKeySequence, QMovie, QPainter, QPalette, QPen, QPixmap, QTextDocument
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import (
     QApplication,
@@ -759,7 +759,10 @@ class CustomTableWidget(QTableWidget):
                         # Obtener el QLabel de la celda
                         cell_widget = self.cellWidget(row, col)
                         if isinstance(cell_widget, QLabel):
-                            cell_text = cell_widget.text()
+                            # Usar QTextDocument para extraer el texto plano
+                            doc = QTextDocument()
+                            doc.setHtml(cell_widget.text())
+                            cell_text = doc.toPlainText()
                         else:
                             cell_text = ""
                     else:

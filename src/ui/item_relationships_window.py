@@ -213,7 +213,8 @@ class ItemRelationshipsWindow(QWidget):
         self.table.setColumnWidth(1, 100)
 
         # Ancho restante para Título/Variante
-        used_width = 65 + 100
+        variant_additional_width = 16 if self._has_variant else 0
+        used_width = 65 + 100 + 24 + variant_additional_width  # Cant., Imagen y padding
         remaining_width = max(parent_width - used_width, 50)  # Evitar negativos
 
         if self._has_variant and self.table.columnCount() == 4:
@@ -310,24 +311,11 @@ class ItemRelationshipsWindow(QWidget):
             # Guardamos _id para doble clic
             self._row_to_item_id[row_idx] = _id
 
-            # # 1) QTableWidgetItem para copiar
-            # plain_text = f"{qty} u."
-            # copy_item = QTableWidgetItem(plain_text)
-            # copy_item.setTextAlignment(Qt.AlignCenter)
-            # copy_item.setFlags(copy_item.flags() & ~Qt.ItemIsEditable)
-            # # Establecer el color del texto a transparente
-            # copy_item.setForeground(QBrush(QColor(0, 0, 0, 0)))  # RGB (0,0,0) con alpha=0 (transparente)
-            # # copy_item.setBackground(QBrush(QColor(0, 0, 0, 0)))  # Opcional: fondo transparente
-            # self.table.setItem(row_idx, 0, copy_item)
-
-            # 2) QLabel con HTML parcial
+            # QLabel con HTML parcial
             html_label = QLabel()
-            # html_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Permitir expansión
-            # html_label.setContentsMargins(0, 0, 0, 0)  # Sin márgenes
-            # html_label.setGeometry(0, 0, self.table.columnWidth(0), self.table.rowHeight(row_idx))
             html_label.setTextFormat(Qt.RichText)
             html_label.setAlignment(Qt.AlignCenter)
-            html_label.setText(f"<b style='font-size:14pt'>{qty}</b> u.")
+            html_label.setText(f"<b style='font-size:18pt'>{qty}</b> u.")
 
             # Ajustar estilo
             html_label.setStyleSheet(
