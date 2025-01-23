@@ -1,6 +1,6 @@
 from PyQt5.QtCore import Qt, QUrl, QTimer, QPoint, QSize
-from PyQt5.QtGui import QPalette, QColor, QPixmap, QMovie, QPainter, QPen, QBrush
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QTableWidgetItem, QHBoxLayout, QLabel, QHeaderView, QApplication
+from PyQt5.QtGui import QPalette, QColor, QPixmap, QMovie, QPainter, QPen, QBrush, QFont
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QTableWidgetItem, QHBoxLayout, QLabel, QHeaderView, QApplication, QSizePolicy
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
 import os
@@ -8,8 +8,7 @@ from config import BASE_ASSETS_PATH
 
 from .custom_widgets import HoverZoomWindow
 
-# Ajusta a la ruta real de tu spinner.gif
-# from paths import BASE_ASSETS_PATH  # Si tienes tu ruta base definida en otro lado
+# spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
 
 __all__ = ["ItemRelationshipsWindow"]
 
@@ -22,6 +21,9 @@ class ItemRelationshipsWindow(QWidget):
 
         # Estado de visibilidad
         self._is_visible = False
+
+        # Guardar si hay variante o no, para luego saber si asignar 70/30 o 100%.
+        self._has_variant = False
 
         # Semi-transparencia en la paleta
         palette = self.palette()
@@ -186,6 +188,48 @@ class ItemRelationshipsWindow(QWidget):
             background_color="#000000",  # Negro
             opacity=0.65,
         )
+        # Después de ajustar geometry, recalculamos anchos
+        self._adjust_table_columns(parent_geometry.width())
+
+    # ------------------------------------------------------------------
+    # Ajustar columnas según ancho del parent
+    # ------------------------------------------------------------------
+    def _adjust_table_columns(self, parent_width):
+        """
+        Basado en el ancho del parent, repartimos:
+         - col 0 => 65 px (Cant.)
+         - col 1 => 100 px (Imagen)
+         - col 2 => (restante * 0.7) si hay variante, o (restante * 1.0) si no
+         - col 3 => (restante * 0.3) si hay variante
+        """
+        if self.table.columnCount() < 3:
+            return  # Significa que no se han cargado datos
+
+        # Primero, marcamos las 2 primeras columnas como fijas
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.table.setColumnWidth(0, 65)
+        self.table.setColumnWidth(1, 100)
+
+        # Ancho restante para Título/Variante
+        used_width = 65 + 100
+        remaining_width = max(parent_width - used_width, 50)  # Evitar negativos
+
+        if self._has_variant and self.table.columnCount() == 4:
+            # col 2 => 70%, col 3 => 30%
+            col2_width = int(remaining_width * 0.7)
+            col3_width = int(remaining_width * 0.3)
+
+            self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+            self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Fixed)
+
+            self.table.setColumnWidth(2, max(col2_width, 50))
+            self.table.setColumnWidth(3, max(col3_width, 50))
+
+        else:
+            # col 2 => 100% (stretch o fixed)
+            self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+            self.table.setColumnWidth(2, remaining_width)
 
     def setGeometryWithBackground(self, x, y, width, height, background_color="#000000", opacity=0.8):
         """
@@ -241,12 +285,12 @@ class ItemRelationshipsWindow(QWidget):
             return
 
         # ¿Hay alguna relación que tenga variant?
-        has_variant = any(rel.get("tecneu_item", {}).get("variations") for rel in relationships)
+        self._has_variant = any(rel.get("tecneu_item", {}).get("variations") for rel in relationships)
 
         # Definimos las columnas:
         #  - 3 columnas si no hay variante: [Cant., Imagen, Título]
         #  - 4 columnas si sí hay variante: [Cant., Imagen, Título, Variante]
-        if has_variant:
+        if self._has_variant:
             self.table.setColumnCount(4)
             self.table.setHorizontalHeaderLabels(["Cant.", "Imagen", "Título", "Variante"])
         else:
@@ -265,10 +309,33 @@ class ItemRelationshipsWindow(QWidget):
             # Guardamos _id para doble clic
             self._row_to_item_id[row_idx] = _id
 
-            # 1) Col 0 => Cant. (ej: "8 x")
-            qty_item = QTableWidgetItem(f"{qty} x")
-            qty_item.setFlags(qty_item.flags() & ~Qt.ItemIsEditable)
-            self.table.setItem(row_idx, 0, qty_item)
+            # 1) QTableWidgetItem para copiar
+            plain_text = f"{qty} u."
+            copy_item = QTableWidgetItem(plain_text)
+            copy_item.setFlags(copy_item.flags() & ~Qt.ItemIsEditable)
+            # Establecer el color del texto a transparente
+            copy_item.setForeground(QBrush(QColor(0, 0, 0, 0)))  # RGB (0,0,0) con alpha=0 (transparente)
+            # copy_item.setBackground(QBrush(QColor(0, 0, 0, 0)))  # Opcional: fondo transparente
+            self.table.setItem(row_idx, 0, copy_item)
+
+            # 2) QLabel con HTML parcial
+            html_label = QLabel()
+            # html_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Permitir expansión
+            # html_label.setContentsMargins(0, 0, 0, 0)  # Sin márgenes
+            # html_label.setGeometry(0, 0, self.table.columnWidth(0), self.table.rowHeight(row_idx))
+            html_label.setTextFormat(Qt.RichText)
+            html_label.setAlignment(Qt.AlignCenter)
+            html_label.setText(f"<b style='font-size:14pt'>{qty}</b> u.")
+
+            # Ajustar estilo
+            html_label.setStyleSheet("""
+                QLabel {
+                    background-color: transparent;
+                    color: white;
+                }
+            """)
+
+            self.table.setCellWidget(row_idx, 0, html_label)
 
             # 2) Col 1 => Imagen (QLabel con descarga asíncrona)
             label = QLabel()
@@ -280,7 +347,7 @@ class ItemRelationshipsWindow(QWidget):
                     background-color: transparent;
                 }
             """)
-            spinner_path = "spinner.gif"
+            spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
             if os.path.exists(spinner_path):
                 spinner = QMovie(spinner_path)
                 spinner.setScaledSize(QSize(60, 60))
@@ -304,8 +371,8 @@ class ItemRelationshipsWindow(QWidget):
             title_item.setFlags(title_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row_idx, 2, title_item)
 
-            # 4) Col 3 => Variante (sólo si has_variant)
-            if has_variant:
+            # 4) Col 3 => Variante (sólo si self._has_variant)
+            if self._has_variant:
                 variant_text = ""
                 variations = tecneu_item.get("variations", [])
                 if variations:
@@ -318,30 +385,6 @@ class ItemRelationshipsWindow(QWidget):
                 var_item = QTableWidgetItem(variant_text)
                 var_item.setFlags(var_item.flags() & ~Qt.ItemIsEditable)
                 self.table.setItem(row_idx, 3, var_item)
-
-        # Ajustar anchos según lo pedido:
-        #  - Col 0 => 65 px
-        #  - Col 1 => 100 px
-        #  - Col 2 => Título => 70% (si hay variante) o 100% (si no hay)
-        #  - Col 3 => Variante => 30%
-        self.table.setColumnWidth(0, 65)   # Cant.
-        self.table.setColumnWidth(1, 100)  # Imagen
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-
-        total_stretch = 1000  # base
-        if has_variant:
-            # col 2 => 70%, col 3 => 30%
-            self.table.setColumnWidth(2, int(total_stretch * 0.7))
-            self.table.setColumnWidth(3, int(total_stretch * 0.3))
-            self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-            self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
-        else:
-            # col 2 => 100%
-            self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-
-        # Mostramos la cabecera horizontal (por si se ocultó antes)
-        self.table.horizontalHeader().setVisible(True)
 
         # Ajustar altura de filas
         self.table.resizeRowsToContents()

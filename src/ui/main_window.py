@@ -6,10 +6,11 @@ import sys
 from ctypes import wintypes
 
 from PyQt5.QtCore import QSettings, QSize, Qt, QThreadPool, QTimer, QUrl
-from PyQt5.QtGui import QColor, QIcon, QMovie, QPixmap, QStandardItem, QStandardItemModel
+from PyQt5.QtGui import QColor, QIcon, QMovie, QPixmap, QStandardItem, QStandardItemModel, QKeySequence
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import (
     QApplication,
+    QShortcut,
     QComboBox,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -112,6 +113,11 @@ class MainWindow(QWidget):
         self.space_press_timer.setSingleShot(True)
         self.space_press_timer.timeout.connect(self.handle_single_space_press)
         self.space_press_count = 0
+
+        # Creamos el shortcut Ctrl+H
+        self.shortcut_hide = QShortcut(QKeySequence("Ctrl+H"), self)
+        self.shortcut_hide.setContext(Qt.ApplicationShortcut)
+        self.shortcut_hide.activated.connect(self.toggle_emergent_windows)
 
     def apply_new_delay(self):
         # Aplica el nuevo delay al hilo de impresión
@@ -1309,6 +1315,26 @@ class MainWindow(QWidget):
             self.print_thread.stopped = False
         self.set_status_message("Impresión completada... ", duration=10, countdown=True)
         self.copies_entry.setValue("0")
+
+    def toggle_emergent_windows(self):
+        """
+        Si el carrusel o la tabla están visibles, los oculta;
+        de lo contrario, vuelve a mostrarlos,
+        pero sin perder la información que ya tenían.
+        """
+        if self.carousel.is_visible or self.relationships_window.is_visible:
+            self.carousel.hide_carousel()  # Esto no borra las imágenes
+            self.relationships_window.hide_relationships()
+        else:
+            # Solo lo mostramos si ya tenía imágenes cargadas (o si lo deseas, siempre).
+            if self.carousel.images:
+                self.carousel.show_carousel(parent_geometry=self.geometry())
+            # Solo lo mostramos si ya tenía data cargada
+            row_count = self.relationships_window.table.rowCount()
+            if row_count > 0:
+                self.relationships_window.show_relationships(parent_geometry=self.geometry())
+
+        self.clear_focus()
 
     def toggle_always_on_top(self, checked, play_sound=True):
         """
