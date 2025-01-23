@@ -6,7 +6,7 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem,
-    QTableWidgetItem, QHBoxLayout, QLabel, QHeaderView
+    QTableWidgetItem, QHBoxLayout, QLabel, QHeaderView, QApplication
 )
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
@@ -41,36 +41,82 @@ class ItemRelationshipsWindow(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        # Creamos la tabla
+        # Creamos la tabla con 3 columnas:
+        #   Columna 0 -> Imagen
+        #   Columna 1 -> Título
+        #   Columna 2 -> Variante
+        # El encabezado vertical lo usaremos para "Cantidad"
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Imagen", "Título", "Cantidad"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setHorizontalHeaderLabels(["Imagen", "Título", "Variante"])
         self.main_layout.addWidget(self.table)
 
         # Altura fija inicial (puedes ajustarla si lo deseas)
         self.setFixedHeight(200)
 
-        # Manager para descargas de imágenes
+        # Manager para descargas
         self.network_manager = QNetworkAccessManager(self)
-
-        # Diccionario para almacenar pixmaps originales (igual que en el carrusel)
         self.original_images = {}
-
-        # Control de zoom (si deseas reusar la misma ventana de zoom)
         self.hover_zoom_window = None
+
+        # Diccionario para mapear row -> tecneu_item_id
+        self._row_to_item_id = {}
 
         # Fondo/Color que pintaremos (negro 65% opaco). Se setea con setGeometryWithBackground
         self.background_color = QColor(0, 0, 0, 0)  # Negro sin opacidad en inicio
 
+        # --------------------------
+        # Ajustes de estilo en la tabla
+        # --------------------------
+        # Hacemos transparente el fondo y blancos los textos/bordes
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: transparent; /* Sin fondo */
+                color: white;                  /* Texto blanco */
+                gridline-color: white;         /* Líneas blancas */
+            }
+            QHeaderView::section {
+                background-color: transparent; /* Encabezado sin fondo */
+                color: white;                  /* Texto encabezados en blanco */
+                font-weight: bold;             /* Negritas */
+                font-size: 12pt;               /* Tamaño de letra encabezados */
+            }
+        """)
+
+        # Ajustar altura del header horizontal
+        self.table.horizontalHeader().setFixedHeight(30)
+
+        # Ocultamos el header horizontal de filas (números) y lo usamos para la cantidad
+        # Realmente NO lo ocultamos, sino que ocultamos la numeración automática:
+        #  - setVerticalHeader() visible, pero setVerticalHeaderItem() con la cantidad
+        #  - Deshabilitar la numeración por defecto:
+        self.table.verticalHeader().setVisible(True)  # Para mostrar la columna lateral, si deseamos
+        self.table.verticalHeader().setDefaultSectionSize(30)  # Altura de cada "encabezado" de fila
+        # Dejarlo visible para mostrar la cantidad en esa parte
+        # Si no deseas ver la barra de la izquierda, usa setVisible(False) y en su lugar
+        # añade otra columna. Pero según lo pedido, la usaremos para la cantidad.
+
+        # Columnas expandibles
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        # Hacer celdas read-only pero copiables:
+        #   - QAbstractItemView::NoEditTriggers evita edición con doble clic
+        #   - El usuario aún puede seleccionar y copiar
+        self.table.setEditTriggers(self.table.NoEditTriggers)
+        self.table.setSelectionBehavior(self.table.SelectItems)
+        self.table.setSelectionMode(self.table.SingleSelection)
+
+        # Conectamos la señal de doble clic
+        self.table.cellDoubleClicked.connect(self.handle_cell_double_clicked)
+
+    # ------------------------------------------------------------------------
+    # Manejo de visibilidad (similar a ImageCarousel)
+    # ------------------------------------------------------------------------
     @property
     def is_visible(self):
         """Retorna si la ventana de relaciones está visible."""
         return self._is_visible
 
-    # ------------------------------------------------------------------------
-    # Métodos de visibilidad (similar a ImageCarousel)
-    # ------------------------------------------------------------------------
     def toggle_visibility(self, parent_geometry=None):
         if self._is_visible:
             self.hide_relationships()
@@ -137,6 +183,7 @@ class ItemRelationshipsWindow(QWidget):
         en la tabla.
         """
         self.clear_relationships()
+        self._row_to_item_id.clear()
 
         if not relationships:
             return
@@ -145,23 +192,39 @@ class ItemRelationshipsWindow(QWidget):
 
         for row, rel in enumerate(relationships):
             # Extraemos la info
-            quantity = rel.get("quantity", 0)
             tecneu_item = rel.get("tecneu_item", {})
+            tecneu_item_id = tecneu_item.get("_id", "")
+            quantity = rel.get("quantity", 0)
             title = tecneu_item.get("title", "Sin título")
-            pictures = tecneu_item.get("pictures", [])
 
-            image_url = ""
-            if pictures:
-                image_url = pictures[0].get("url", "")  # Tomar la primera
+            # 1) "Variante"
+            variations = tecneu_item.get("variations", [])
+            variant_text = ""
+            if variations:
+                attr_name = variations[0].get("attribute_name", "")
+                val_name = variations[0].get("value_name", "")
+                # Normalizamos: solo primera letra mayúscula, resto minúsculas
+                attr_name = capitalize_first(attr_name)
+                val_name = capitalize_first(val_name)
+                variant_text = f"{attr_name}: {val_name}".strip()
 
-            # 1) Columna de Imagen
+            # Almacenamos el id en un diccionario para luego copiarlo en doble clic
+            self._row_to_item_id[row] = tecneu_item_id
+
+            # -- Encabezado vertical con la cantidad (en lugar del # de fila) --
+            self.table.setVerticalHeaderItem(row, QTableWidgetItem(str(quantity)))
+            vh_item = self.table.verticalHeaderItem(row)
+            # Ajustamos flags para que no sea editable
+            vh_item.setFlags(vh_item.flags() & ~Qt.ItemIsEditable & ~Qt.ItemIsDragEnabled)
+
+            # 2) Imagen (col 0)
             label = QLabel()
             label.setFixedSize(100, 100)
             label.setAlignment(Qt.AlignCenter)
             label.setStyleSheet("""
                 QLabel {
-                    border: 1px solid gray;
-                    background-color: white;
+                    border: 1px solid white;  /* Borde blanco */
+                    background-color: transparent;
                 }
             """)
 
@@ -179,16 +242,28 @@ class ItemRelationshipsWindow(QWidget):
             self.table.setCellWidget(row, 0, label)
 
             # Llamamos a descargar la imagen (con reintentos)
-            if image_url:
-                self.download_image(image_url, label, spinner)
+            pictures = tecneu_item.get("pictures", [])
+            if pictures:
+                image_url = pictures[0].get("url", "")
+                if image_url:
+                    self.download_image(image_url, label, spinner)
 
-            # 2) Columna de Título
+            # 3) Título (col 1)
             title_item = QTableWidgetItem(title)
+            # Hacemos la celda inmutable pero seleccionable
+            flags = title_item.flags()
+            # Deshabilitamos edición:
+            flags &= ~Qt.ItemIsEditable
+            title_item.setFlags(flags)
             self.table.setItem(row, 1, title_item)
 
-            # 3) Columna de Cantidad
-            quantity_item = QTableWidgetItem(str(quantity))
-            self.table.setItem(row, 2, quantity_item)
+            # 4) Variante (col 2)
+            variant_item = QTableWidgetItem(variant_text)
+            # También inmutable pero seleccionable
+            vflags = variant_item.flags()
+            vflags &= ~Qt.ItemIsEditable
+            variant_item.setFlags(vflags)
+            self.table.setItem(row, 2, variant_item)
 
         # Ajuste de alto de filas (opcional)
         self.table.resizeRowsToContents()
@@ -198,6 +273,21 @@ class ItemRelationshipsWindow(QWidget):
         self.table.setRowCount(0)
         # Si deseas limpiar self.original_images, hazlo aquí
         self.original_images.clear()
+
+    # ------------------------------------------------------------------------
+    # Copiar _id al hacer doble clic
+    # ------------------------------------------------------------------------
+    def handle_cell_double_clicked(self, row, column):
+        """
+        Se llama cuando el usuario hace doble clic en cualquier celda.
+        Copiamos el _id del tecneu_item correspondiente a esa fila.
+        """
+        item_id = self._row_to_item_id.get(row, "")
+        if item_id:
+            QApplication.clipboard().setText(item_id)
+            print(f"Copiado _id={item_id} al portapapeles.")
+        else:
+            print("No se encontró _id para esa fila")
 
     # ------------------------------------------------------------------------
     # Manejo de descarga de imágenes (similar a ImageCarousel)
@@ -328,7 +418,7 @@ class ItemRelationshipsWindow(QWidget):
         local_pos = event.pos()
         label_w, label_h = label.width(), label.height()
         pm = label.pixmap()
-        if pm is None:
+        if not pm:
             return
 
         pixmap_w, pixmap_h = pm.size().width(), pm.size().height()
@@ -340,7 +430,7 @@ class ItemRelationshipsWindow(QWidget):
         pixmap_x = int(local_pos.x() * scale_x)
         pixmap_y = int(local_pos.y() * scale_y)
 
-        # Centramos zoom
+        # Centramos zoom en un rect 40x40
         zoom_x = max(0, min(pixmap_x - 20, pixmap_w - 40))
         zoom_y = max(0, min(pixmap_y - 20, pixmap_h - 40))
 
@@ -352,9 +442,10 @@ class ItemRelationshipsWindow(QWidget):
 
         pixmap_copy = label._original_pixmap.copy()
         painter = QPainter(pixmap_copy)
-        pen = QPen(QColor(0, 0, 255, 128))
+        pen = QPen(QColor(0, 0, 255, 255)) # Azul oscuro
         pen.setWidth(1)
         painter.setPen(pen)
+
         grid_size = 2
         for gx in range(zoom_x, zoom_x + 40, grid_size):
             for gy in range(zoom_y, zoom_y + 40, grid_size):
@@ -364,3 +455,13 @@ class ItemRelationshipsWindow(QWidget):
         label.setPixmap(pixmap_copy)
         label.update()
 
+# ---------------------------------------------------------
+# Función auxiliar para normalizar texto: primera letra mayúscula, resto minúscula
+# ---------------------------------------------------------
+def capitalize_first(text):
+    if not text:
+        return ""
+    if len(text) == 1:
+        return text.upper()
+    # Primera letra mayúscula, resto minúsculas
+    return text[0].upper() + text[1:].lower()
