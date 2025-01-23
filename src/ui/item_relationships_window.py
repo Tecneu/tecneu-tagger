@@ -41,15 +41,19 @@ class ItemRelationshipsWindow(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        # Creamos la tabla con 3 columnas:
-        #   Columna 0 -> Imagen
-        #   Columna 1 -> Título
-        #   Columna 2 -> Variante
-        # El encabezado vertical lo usaremos para "Cantidad"
+        # Creamos la tabla (inicialmente 0 filas/0 columnas)
         self.table = QTableWidget()
-        self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Imagen", "Título", "Variante"])
         self.main_layout.addWidget(self.table)
+
+        # # Creamos la tabla con 3 columnas:
+        # #   Columna 0 -> Imagen
+        # #   Columna 1 -> Título
+        # #   Columna 2 -> Variante
+        # # El encabezado vertical lo usaremos para "Cantidad"
+        # self.table = QTableWidget()
+        # self.table.setColumnCount(3)
+        # self.table.setHorizontalHeaderLabels(["Imagen", "Título", "Variante"])
+        # self.main_layout.addWidget(self.table)
 
         # Altura fija inicial (puedes ajustarla si lo deseas)
         self.setFixedHeight(200)
@@ -68,18 +72,26 @@ class ItemRelationshipsWindow(QWidget):
         # --------------------------
         # Ajustes de estilo en la tabla
         # --------------------------
-        # Hacemos transparente el fondo y blancos los textos/bordes
+        # Hacemos transparente todo, texto y bordes blancos
+        # Y controlamos la selección para que, al des-seleccionar, quede transparente.
         self.table.setStyleSheet("""
             QTableWidget {
-                background-color: transparent; /* Sin fondo */
-                color: white;                  /* Texto blanco */
-                gridline-color: white;         /* Líneas blancas */
+                background-color: transparent;       /* Fondo transparente */
+                color: white;                        /* Texto blanco */
+                gridline-color: white;               /* Líneas en blanco */
+                selection-background-color: rgba(0, 0, 255, 80); /* Azul transparente al seleccionar */
+                selection-color: white;              /* Texto blanco cuando se selecciona */
             }
             QHeaderView::section {
-                background-color: transparent; /* Encabezado sin fondo */
-                color: white;                  /* Texto encabezados en blanco */
-                font-weight: bold;             /* Negritas */
-                font-size: 12pt;               /* Tamaño de letra encabezados */
+                background-color: transparent;       /* Encabezados sin fondo */
+                color: white;                        /* Texto blanco */
+                border: 1px solid white;             /* Bordes blancos */
+                font-weight: bold;                   /* Negritas */
+                font-size: 12pt;                     /* Tamaño de letra */
+            }
+            QTableCornerButton::section {
+                background-color: transparent;       /* Esquina sup-izq sin fondo */
+                border: 1px solid white;
             }
         """)
 
@@ -91,7 +103,9 @@ class ItemRelationshipsWindow(QWidget):
         #  - setVerticalHeader() visible, pero setVerticalHeaderItem() con la cantidad
         #  - Deshabilitar la numeración por defecto:
         self.table.verticalHeader().setVisible(True)  # Para mostrar la columna lateral, si deseamos
-        self.table.verticalHeader().setDefaultSectionSize(30)  # Altura de cada "encabezado" de fila
+        # self.table.verticalHeader().setDefaultSectionSize(30)  # Altura de cada "encabezado" de fila
+        # Fijamos ancho de la cabecera vertical a 20 px
+        self.table.verticalHeader().setFixedWidth(20)
         # Dejarlo visible para mostrar la cantidad en esa parte
         # Si no deseas ver la barra de la izquierda, usa setVisible(False) y en su lugar
         # añade otra columna. Pero según lo pedido, la usaremos para la cantidad.
@@ -188,50 +202,68 @@ class ItemRelationshipsWindow(QWidget):
         if not relationships:
             return
 
-        self.table.setRowCount(len(relationships))
+        # ¿Hay alguna relación que tenga variant?
+        has_variant = any(
+            rel.get("tecneu_item", {}).get("variations")
+            for rel in relationships
+        )
 
-        for row, rel in enumerate(relationships):
-            # Extraemos la info
+        # Si hay variantes, tendremos 3 columnas: Imagen, Título, Variante
+        # Si no, solo 2 columnas: Imagen, Título
+        if has_variant:
+            self.table.setColumnCount(3)
+            self.table.setHorizontalHeaderLabels(["Imagen", "Título", "Variante"])
+        else:
+            self.table.setColumnCount(2)
+            self.table.setHorizontalHeaderLabels(["Imagen", "Título"])
+
+        # +1 fila adicional para poner en la fila 0 el título "Relaciones"
+        row_count = len(relationships) + 1
+        self.table.setRowCount(row_count)
+
+        # ------------------------------------------------------------------
+        # Fila 0 => título "Relaciones" (se expande en todas las columnas)
+        # ------------------------------------------------------------------
+        self.table.setSpan(0, 0, 1, self.table.columnCount())
+        titulo_item = QTableWidgetItem("Relaciones")
+        # Fondo rojo claro y texto centrado
+        titulo_item.setBackground(QColor(255, 128, 128))
+        titulo_item.setTextAlignment(Qt.AlignCenter)
+        self.table.setItem(0, 0, titulo_item)
+
+        # Encabezado vertical para la fila 0 => "Cant."
+        self.table.setVerticalHeaderItem(0, QTableWidgetItem("Cant."))
+
+        # ------------------------------------------------------------------
+        # Rellenamos de la fila 1 hacia abajo
+        # ------------------------------------------------------------------
+        for i, rel in enumerate(relationships, start=1):
             tecneu_item = rel.get("tecneu_item", {})
             tecneu_item_id = tecneu_item.get("_id", "")
             quantity = rel.get("quantity", 0)
             title = tecneu_item.get("title", "Sin título")
 
-            # 1) "Variante"
-            variations = tecneu_item.get("variations", [])
-            variant_text = ""
-            if variations:
-                attr_name = variations[0].get("attribute_name", "")
-                val_name = variations[0].get("value_name", "")
-                # Normalizamos: solo primera letra mayúscula, resto minúsculas
-                attr_name = capitalize_first(attr_name)
-                val_name = capitalize_first(val_name)
-                variant_text = f"{attr_name}: {val_name}".strip()
+            # Guardamos el _id para doble clic
+            self._row_to_item_id[i] = tecneu_item_id
 
-            # Almacenamos el id en un diccionario para luego copiarlo en doble clic
-            self._row_to_item_id[row] = tecneu_item_id
+            # ~~~~~ Encabezado vertical con "X x" ~~~~~
+            # Concatena " x" al valor
+            self.table.setVerticalHeaderItem(i, QTableWidgetItem(f"{quantity} x"))
 
-            # -- Encabezado vertical con la cantidad (en lugar del # de fila) --
-            self.table.setVerticalHeaderItem(row, QTableWidgetItem(str(quantity)))
-            vh_item = self.table.verticalHeaderItem(row)
-            # Ajustamos flags para que no sea editable
-            vh_item.setFlags(vh_item.flags() & ~Qt.ItemIsEditable & ~Qt.ItemIsDragEnabled)
-
-            # 2) Imagen (col 0)
+            # ~~~~~ Col 0 => Imagen ~~~~~
             label = QLabel()
             label.setFixedSize(100, 100)
             label.setAlignment(Qt.AlignCenter)
             label.setStyleSheet("""
                 QLabel {
-                    border: 1px solid white;  /* Borde blanco */
+                    border: 1px solid white;  
                     background-color: transparent;
                 }
             """)
-
-            # Mostramos spinner mientras se descarga
-            spinner_gif_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
-            if os.path.exists(spinner_gif_path):
-                spinner = QMovie(spinner_gif_path)
+            # Spinner
+            spinner_path = "spinner.gif"
+            if os.path.exists(spinner_path):
+                spinner = QMovie(spinner_path)
                 spinner.setScaledSize(QSize(60, 60))
                 label.setMovie(spinner)
                 spinner.start()
@@ -239,33 +271,64 @@ class ItemRelationshipsWindow(QWidget):
                 spinner = None
                 label.setText("Cargando...")
 
-            self.table.setCellWidget(row, 0, label)
+            self.table.setCellWidget(i, 0, label)
 
-            # Llamamos a descargar la imagen (con reintentos)
+            # Descarga imagen
             pictures = tecneu_item.get("pictures", [])
             if pictures:
                 image_url = pictures[0].get("url", "")
                 if image_url:
                     self.download_image(image_url, label, spinner)
 
-            # 3) Título (col 1)
+            # ~~~~~ Col 1 => Título ~~~~~
             title_item = QTableWidgetItem(title)
-            # Hacemos la celda inmutable pero seleccionable
-            flags = title_item.flags()
-            # Deshabilitamos edición:
-            flags &= ~Qt.ItemIsEditable
-            title_item.setFlags(flags)
-            self.table.setItem(row, 1, title_item)
+            title_item.setFlags(title_item.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(i, 1, title_item)
 
-            # 4) Variante (col 2)
-            variant_item = QTableWidgetItem(variant_text)
-            # También inmutable pero seleccionable
-            vflags = variant_item.flags()
-            vflags &= ~Qt.ItemIsEditable
-            variant_item.setFlags(vflags)
-            self.table.setItem(row, 2, variant_item)
+            # ~~~~~ Col 2 => Variante (solo si has_variant) ~~~~~
+            if has_variant:
+                variant_text = ""
+                variations = tecneu_item.get("variations", [])
+                if variations:
+                    attr_name = variations[0].get("attribute_name", "")
+                    val_name = variations[0].get("value_name", "")
+                    attr_name = capitalize_first(attr_name)
+                    val_name = capitalize_first(val_name)
+                    variant_text = f"{attr_name}: {val_name}".strip()
 
-        # Ajuste de alto de filas (opcional)
+                variant_item = QTableWidgetItem(variant_text)
+                variant_item.setFlags(variant_item.flags() & ~Qt.ItemIsEditable)
+                self.table.setItem(i, 2, variant_item)
+
+        # ------------------------------------------------------------------
+        # Ajustamos anchos según lo pedido
+        # ------------------------------------------------------------------
+        # - VerticalHeader => ancho 20px (ya fijado con setFixedWidth(20)).
+        # - Col 0 => "Imagen" => 100 px fijos
+        self.table.setColumnWidth(0, 100)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+
+        # Para las columnas restantes, usaremos "Stretch" para ocupar el espacio sobrante.
+        # Si hay "Variante":
+        #    - "Título" => 70%
+        #    - "Variante" => 30%
+        # De lo contrario (2 columnas):
+        #    - "Título" => 100%
+        total_stretch = 1000  # una base para la relación
+
+        if has_variant:
+            # Col 1 => Título => ~70% del espacio
+            # Col 2 => Variante => ~30%
+            # Truco: Asignamos anchos iniciales proporcionales
+            self.table.setColumnWidth(1, int(total_stretch * 0.7))
+            self.table.setColumnWidth(2, int(total_stretch * 0.3))
+            self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+            self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        else:
+            # Solo 2 columnas: Imagen, Título => Título 100% del sobrante
+            self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+
+        # Ajustar altura de filas
         self.table.resizeRowsToContents()
 
     def clear_relationships(self):
@@ -279,15 +342,87 @@ class ItemRelationshipsWindow(QWidget):
     # ------------------------------------------------------------------------
     def handle_cell_double_clicked(self, row, column):
         """
-        Se llama cuando el usuario hace doble clic en cualquier celda.
-        Copiamos el _id del tecneu_item correspondiente a esa fila.
+        Doble clic en cualquier celda => copiar el _id de esa fila,
+        mostrar mensaje flotante.
         """
+        # Omitimos la fila 0 (que es "Relaciones")
+        if row == 0:
+            return
+
         item_id = self._row_to_item_id.get(row, "")
         if item_id:
             QApplication.clipboard().setText(item_id)
             print(f"Copiado _id={item_id} al portapapeles.")
+            # Mostramos un mensaje flotante, por ejemplo:
+            self.show_temporary_message(
+                text=f"Copiado: {item_id}",
+                bg_color="#222222",
+                text_color="#FFFFFF",
+                duration=2000,
+                position_x="center",
+                position_y="bottom"
+            )
+        # else:
+        #     print("No se encontró _id para esa fila")
+
+    def show_temporary_message(self, text, bg_color="#222", text_color="#fff",
+                               duration=2000, position_x="center", position_y="top"):
+        """
+        Muestra un QLabel flotante y transparente sobre esta ventana,
+        que se oculta automáticamente tras 'duration' ms.
+
+        :param text: Texto a mostrar
+        :param bg_color: color de fondo (hex)
+        :param text_color: color de letra (hex)
+        :param duration: tiempo en ms
+        :param position_x: "center", "left", "right"
+        :param position_y: "top", "bottom"
+        """
+        msg_label = QLabel(self)
+        msg_label.setText(text)
+        msg_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: {bg_color};
+                color: {text_color};
+                padding: 6px 10px;
+                border-radius: 4px;
+            }}
+        """)
+        msg_label.adjustSize()
+
+        # Calculamos posición
+        parent_rect = self.rect()  # geom local
+        label_w = msg_label.width()
+        label_h = msg_label.height()
+
+        # Eje X
+        if position_x == "center":
+            x = (parent_rect.width() - label_w) // 2
+        elif position_x == "right":
+            x = parent_rect.width() - label_w - 10
         else:
-            print("No se encontró _id para esa fila")
+            # "left" por defecto
+            x = 10
+
+        # Eje Y
+        if position_y == "bottom":
+            y = parent_rect.height() - label_h - 10
+        else:
+            # "top" por defecto
+            y = 10
+
+        msg_label.move(x, y)
+        msg_label.show()
+
+        # Timer para autodestruir
+        def _remove_label():
+            msg_label.deleteLater()
+
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.setInterval(duration)
+        timer.timeout.connect(_remove_label)
+        timer.start()
 
     # ------------------------------------------------------------------------
     # Manejo de descarga de imágenes (similar a ImageCarousel)
