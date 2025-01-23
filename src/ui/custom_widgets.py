@@ -9,7 +9,7 @@ from config import BASE_ASSETS_PATH
 from font_config import FontManager
 
 # ui/custom_widgets.py
-__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar", "CustomComboBox", "ImageCarousel"]
+__all__ = ["CustomTextEdit", "SpinBoxWidget", "CustomSearchBar", "CustomComboBox", "ImageCarousel", "HoverZoomWindow"]
 
 QApplication.processEvents()
 

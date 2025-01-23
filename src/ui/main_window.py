@@ -33,6 +33,7 @@ from workers.search_by_zpl_worker import ZplWorker
 from workers.search_worker import SearchWorker
 
 from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, ImageCarousel, SpinBoxWidget, ToggleSwitch
+from .item_relationships_window import ItemRelationshipsWindow
 from .zpl_preview import LabelViewer
 
 user32 = ctypes.windll.user32
@@ -600,6 +601,7 @@ class MainWindow(QWidget):
         main_layout.addLayout(zpl_layout)  # Añadir el layout de ZPL al layout principal
 
         self.carousel = ImageCarousel(self)
+        self.relationships_window = ItemRelationshipsWindow(self)
 
         self.setLayout(main_layout)
 
@@ -617,6 +619,7 @@ class MainWindow(QWidget):
 
     def reset_all(self, include_search_bar=True, include_zpl_textedit=True):
         self.carousel.hide_carousel()
+        self.relationships_window.hide_relationships()
         self.labelViewer.clear_preview()
         if include_zpl_textedit:
             self.zpl_textedit.clear()
@@ -921,6 +924,20 @@ class MainWindow(QWidget):
                     countdown=True,
                     color="#BD2A2E",
                 )
+        # Extraemos 'tecneu_item_relationships'
+        # Si hay relationships
+        relationships = item.get("tecneu_item_relationships", [])
+        if relationships:
+            self.relationships_window.set_relationships_data(relationships)
+            self.relationships_window.show_relationships(parent_geometry=self.geometry())
+        else:
+            self.set_status_message(
+                "No se encontraron relaciones del producto",
+                duration=5,
+                countdown=True,
+                color="#BD2A2E",
+            )
+            # self.relationships_window.hide_relationships()
 
     def process_zpl_text_and_call_api_if_needed(self, zpl_text):
         """
@@ -1341,6 +1358,11 @@ class MainWindow(QWidget):
 
         super().closeEvent(event)
 
+    def update_relationships_position(self):
+        """Update the carousel position to align with the main window."""
+        if self.relationships_window.is_visible:
+            self.relationships_window._configure_geometry(parent_geometry=self.geometry())
+
     def update_carousel_position(self):
         """Update the carousel position to align with the main window."""
         if self.carousel.is_visible:
@@ -1349,6 +1371,7 @@ class MainWindow(QWidget):
     def moveEvent(self, event):
         """Update the carousel's position when the main window moves."""
         self.update_carousel_position()
+        self.update_relationships_position()
         if self.loading_overlay is not None:
             self.loading_overlay.setGeometry(self.rect())
         super().moveEvent(event)
@@ -1356,6 +1379,7 @@ class MainWindow(QWidget):
     def resizeEvent(self, event):
         """Update the carousel's position when the main window resizes."""
         self.update_carousel_position()
+        self.update_relationships_position()
         if self.loading_overlay is not None:
             self.loading_overlay.setGeometry(self.rect())
         super().resizeEvent(event)  # Mantiene el comportamiento original

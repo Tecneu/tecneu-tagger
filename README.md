@@ -2,10 +2,10 @@
 
 1. **Instala Pyenv**
     - Windows: `pip install pyenv-win`
-      - Establecer las siguientes rutas en la variable de entorno Path, en la parte superior, para que asigne prioridad a las versiones de python de pyenv-win sobre cualquier otra previamente instalada en el equipo:
+      - Establecer las siguientes rutas en la variable de entorno Path, en la parte superior, para que asigne prioridad a las versiones de python de pyenv-win sobre cualquier otra previamente instalada en el equipo, es importante establecer `/shims` en la parte superior:
       ```bash
-      %USERPROFILE%\.pyenv\pyenv-win\bin
       %USERPROFILE%\.pyenv\pyenv-win\shims
+      %USERPROFILE%\.pyenv\pyenv-win\bin
     - Linux/MacOS: Seguir instrucciones de https://github.com/pyenv/pyenv
 
 2. **Configura Pyenv**
@@ -27,7 +27,7 @@
 
 ## Otros
 
-1. **Intellij IDEA**
+1. **Configuración de Intellij IDEA**
    - Configurar que IntelliJ cree y gestione un entorno Pipenv:
      - Abrir la configuración de estructura del proyecto (Ctrl + Alt + Shift + S).
      - En el menu 'SDK' Haz clic en Add Interpreter o 'Add SDK' → selecciona Pipenv Environment (panel izquierdo).
@@ -40,32 +40,31 @@
      C:\Users\%USERPROFILE%\.pyenv\pyenv-win\versions\3.x.x\Scripts\pipenv.exe
      ```
      ![img.png](img.png)
-   - Seleccionar Content Root (Directorio raíz del proyecto:
-   ![img_1.png](img_1.png)
-
-2. **Instala Black, para aplicar formato desde Intellij**
-   - Instala black con su daemon, fuera del proyecto (en la version de python global asignada por pyenv):
-   ```bash
-   pip install black[d]
-   ```
-   - Instala el plugin BlackConnect y accede a su configuración `File > Settings... > Tools > BlackConnect`, asigna el local instance con el path especifico, por ejemplo:
-   ```bash
-   C:\Users\%USERPROFILE%\.pyenv\pyenv-win\shims\blackd.bat
-   ```
+   - Ir a la configuración y seleccionar en el menu `Project Structure > Modules > Add > Import Module > Create module from existing sources > Create`, seleccionar el Path raíz del proyecto que contiene el directorio `.idea` y el archivo `.iml`*:
+   ![img_1.png](img_1.png)![img_2.png](img_2.png)![img_3.png](img_3.png)
+   - Instala Black, para aplicar formato desde Intellij (Opcional):
+     - Instala black con su daemon, fuera del proyecto (en la version de python global asignada por pyenv):
+      ```bash
+      pip install black[d]
+      ```
+     - Instala el plugin BlackConnect y accede a su configuración `File > Settings... > Tools > BlackConnect`, asigna el local instance con el path especifico, por ejemplo:
+      ```bash
+      C:\Users\%USERPROFILE%\.pyenv\pyenv-win\shims\blackd.bat
+      ```
    
-3. **Actualizar dependencias necesarias para el proyecto**
+2. **Actualizar dependencias necesarias para el proyecto**
    ```bash
    pip freeze > requirements.txt
    
-4. **Regenera el lock (opcional si cambias a un Pipfile)**
+3. **Regenera el lock (opcional si cambias a un Pipfile)**
    - Tras editar el Pipfile, ejecuta `pipenv lock`.
    - Luego vuelve a instalar: `pipenv install`
    
-5. **Crear ejecutable**
+4. **Crear ejecutable**
     - Con instrucciones de .spec (Recomendable): `pyinstaller main.spec`
     - Ejecutable inline con icono: `pyinstaller --onefile --windowed --icon=assets/logos/tecneu-logo.ico main.spec`
 
-6. **Ejecutar Tests (`test`)**
+5. **Ejecutar Tests (`test`)**
    -  Usa pytest y pytest-qt para probar la aplicación y widgets de PyQt.
    - Comando:
    ```bash
