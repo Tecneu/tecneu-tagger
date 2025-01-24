@@ -4,6 +4,7 @@ from PyQt5.QtCore import QPoint, QSize, Qt, QTimer, QUrl
 from PyQt5.QtGui import QBrush, QColor, QFont, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 
 from config import BASE_ASSETS_PATH
 
@@ -136,6 +137,9 @@ class ItemRelationshipsWindow(QWidget):
 
         # Conectamos la señal de doble clic
         self.table.cellDoubleClicked.connect(self.handle_cell_double_clicked)
+
+        self.click_sound_player = QMediaPlayer()
+        self.click_sound_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.fspath(BASE_ASSETS_PATH / "sounds" / "click.mp3"))))
 
     # ------------------------------------------------------------------
     #  Sobrescribir el evento de pérdida de foco
