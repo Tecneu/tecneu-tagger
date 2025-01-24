@@ -2,9 +2,9 @@ import os
 
 from PyQt5.QtCore import QPoint, QSize, Qt, QTimer, QUrl
 from PyQt5.QtGui import QBrush, QColor, QFont, QMovie, QPainter, QPalette, QPen, QPixmap
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 
 from config import BASE_ASSETS_PATH
 
@@ -403,6 +403,7 @@ class ItemRelationshipsWindow(QWidget):
         """
         item_id = self._row_to_item_id.get(row, "")
         if item_id:
+            self.click_sound_player.play()
             QApplication.clipboard().setText(item_id)
             # Mostramos un mensaje flotante, por ejemplo:
             self.show_temporary_message(
