@@ -21,6 +21,8 @@
    - Ejecuta el comando `pyenv rehash` para detectar tu nueva instalación de pipenv y crear un shim.
    - Verificar instalación: `pipenv --version`.
    - Activar el entorno virtual del proyecto: `pipenv shell`.
+   - Eliminar entorno virtual anterior para evitar problemas de versiones de Python antiguas (solo de ser necesario): `pipenv --rm`.
+   - Se recomienda asignar también la version local de python con pyenv, ya que evita problemas/perdida de tiempo (a pesar de que se haya asignado también con `pyenv global`) `pyenv local 3.x.x`.
    - Instalar dependencias `pipenv install` o para uso en Producción (Entornos Estables) instala versiones exactas según Pipfile.lock`pipenv install --deploy --ignore-pipfile`.
    - Ejecutar main.py: `python src/main.py`.
    - Salir del entorno virtual: `exit`.
@@ -28,6 +30,8 @@
 ## Otros
 
 1. **Configuración de Intellij IDEA**
+   - Asegurar que el archivo .iml del proyecto no especifique ninguna version/nombre del SDK en especifico. En cambio permitir que IntelliJ IDEA determine el SDK basado en la configuración del proyecto o de los ajustes globales del IDE:
+   ![img_4.png](img_4.png)
    - Configurar que IntelliJ cree y gestione un entorno Pipenv:
      - Abrir la configuración de estructura del proyecto (Ctrl + Alt + Shift + S).
      - En el menu 'SDK' Haz clic en Add Interpreter o 'Add SDK' → selecciona Pipenv Environment (panel izquierdo).

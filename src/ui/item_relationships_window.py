@@ -202,8 +202,8 @@ class ItemRelationshipsWindow(QWidget):
     def _adjust_table_columns(self, parent_width):
         """
         Basado en el ancho del parent, repartimos:
-         - col 0 => 65 px (Cant.)
-         - col 1 => 100 px (Imagen)
+         - col 0 => 70 px (Cant.)
+         - col 1 => 60 px (Imagen)
          - col 2 => (restante * 0.7) si hay variante, o (restante * 1.0) si no
          - col 3 => (restante * 0.3) si hay variante
         """
@@ -213,11 +213,12 @@ class ItemRelationshipsWindow(QWidget):
         # Primero, marcamos las 2 primeras columnas como fijas
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-        self.table.setColumnWidth(0, 65)
-        self.table.setColumnWidth(1, 100)
+        self.table.setColumnWidth(0, 70)
+        self.table.setColumnWidth(1, 60)
 
         # Ancho restante para Título/Variante
-        used_width = 65 + 100
+        variant_additional_width = 16 if self._has_variant else 0
+        used_width = 70 + 60 + 24 + variant_additional_width  # Cant., Imagen y padding
         remaining_width = max(parent_width - used_width, 50)  # Evitar negativos
 
         if self._has_variant and self.table.columnCount() == 4:
@@ -262,10 +263,10 @@ class ItemRelationshipsWindow(QWidget):
     def set_relationships_data(self, relationships):
         """
         Muestra las relaciones en la tabla:
-         - Col 0 => "Cant."
-         - Col 1 => "Imagen"
-         - Col 2 => "Título"
-         - Col 3 => "Variante" (sólo si alguna relación tiene variations)
+         - Col 0 → "Cant."
+         - Col 1 → "Imagen"
+         - Col 2 ⇾ "Título"
+         - Col 3 ⇾ "Variante" (sólo si alguna relación tiene variations)
         También actualiza el label superior con la cuenta de relaciones y la suma de cantidades.
         """
         self.clear_relationships()
@@ -314,24 +315,11 @@ class ItemRelationshipsWindow(QWidget):
             # Guardamos _id para doble clic
             self._row_to_item_id[row_idx] = _id
 
-            # # 1) QTableWidgetItem para copiar
-            # plain_text = f"{qty} u."
-            # copy_item = QTableWidgetItem(plain_text)
-            # copy_item.setTextAlignment(Qt.AlignCenter)
-            # copy_item.setFlags(copy_item.flags() & ~Qt.ItemIsEditable)
-            # # Establecer el color del texto a transparente
-            # copy_item.setForeground(QBrush(QColor(0, 0, 0, 0)))  # RGB (0,0,0) con alpha=0 (transparente)
-            # # copy_item.setBackground(QBrush(QColor(0, 0, 0, 0)))  # Opcional: fondo transparente
-            # self.table.setItem(row_idx, 0, copy_item)
-
-            # 2) QLabel con HTML parcial
+            # QLabel con HTML parcial
             html_label = QLabel()
-            # html_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Permitir expansión
-            # html_label.setContentsMargins(0, 0, 0, 0)  # Sin márgenes
-            # html_label.setGeometry(0, 0, self.table.columnWidth(0), self.table.rowHeight(row_idx))
             html_label.setTextFormat(Qt.RichText)
             html_label.setAlignment(Qt.AlignCenter)
-            html_label.setText(f"<b style='font-size:14pt'>{qty}</b> u.")
+            html_label.setText(f"<b style='font-size:16pt'>{qty}</b> u.")
 
             # Ajustar estilo
             html_label.setStyleSheet(
@@ -347,7 +335,7 @@ class ItemRelationshipsWindow(QWidget):
 
             # 2) Col 1 => Imagen (QLabel con descarga asíncrona)
             label = QLabel()
-            label.setFixedSize(100, 100)
+            label.setFixedSize(60, 60)
             label.setAlignment(Qt.AlignCenter)
             label.setStyleSheet(
                 """
@@ -360,7 +348,7 @@ class ItemRelationshipsWindow(QWidget):
             spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
             if os.path.exists(spinner_path):
                 spinner = QMovie(spinner_path)
-                spinner.setScaledSize(QSize(60, 60))
+                spinner.setScaledSize(QSize(40, 40))
                 label.setMovie(spinner)
                 spinner.start()
             else:
@@ -416,13 +404,10 @@ class ItemRelationshipsWindow(QWidget):
         item_id = self._row_to_item_id.get(row, "")
         if item_id:
             QApplication.clipboard().setText(item_id)
-            print(f"Copiado _id={item_id} al portapapeles.")
             # Mostramos un mensaje flotante, por ejemplo:
             self.show_temporary_message(
                 text=f"Copiado: {item_id}", bg_color="#222222", text_color="#FFFFFF", duration=2000, position_x="center", position_y="bottom"
             )
-        # else:
-        #     print("No se encontró _id para esa fila")
 
     def show_temporary_message(self, text, bg_color="#222", text_color="#fff", duration=2000, position_x="center", position_y="top"):
         """
