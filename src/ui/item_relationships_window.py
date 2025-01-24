@@ -1,6 +1,6 @@
 import os
 
-from PyQt5.QtCore import QPoint, QSize, Qt, QTimer, QUrl
+from PyQt5.QtCore import QPoint, QRectF, QSize, Qt, QTimer, QUrl
 from PyQt5.QtGui import QBrush, QColor, QFont, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
@@ -18,6 +18,11 @@ class ItemRelationshipsWindow(QWidget):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
+
+        # Parámetros personalizables
+        self.THUMB_SIZE = 60  # Tamaño máximo de miniatura (ancho o alto)
+        self.ZOOM_REGION = 40  # Tamaño (en px de la miniatura) del rect mostrado en el thumb
+        self.ZOOM_WINDOW_SIZE = 390  # Tamaño de la ventana de zoom (ancho x alto)
 
         # Estado de visibilidad
         self._is_visible = False
@@ -86,7 +91,7 @@ class ItemRelationshipsWindow(QWidget):
             QTableWidget {
                 background-color: transparent;
                 color: white;
-                gridline-color: white;
+                gridline-color: gray;
                 selection-background-color: rgba(0, 0, 255, 80); /* Azul translúcido */
                 selection-color: white;
                 font-size: 11pt;
@@ -95,7 +100,7 @@ class ItemRelationshipsWindow(QWidget):
             QHeaderView::section {
                 background-color: rgba(0, 0, 0, 0);  /* transparente */
                 background-color: transparent; /* No sirven fondos transparentes aquí */
-                background-color: gray;
+                /* background-color: gray; */
                 color: black;
                 border: 1px solid white;
                 font-weight: bold;
@@ -115,7 +120,7 @@ class ItemRelationshipsWindow(QWidget):
         # (la mostraremos al setear las columnas).
         #  - No es estrictamente necesario ocultarla aquí,
         #    pero lo hacemos para limpiar si no hay datos.
-        # self.table.horizontalHeader().setVisible(False)
+        self.table.horizontalHeader().setVisible(False)
 
         # Hacer celdas read-only pero copiables:
         #   - QAbstractItemView::NoEditTriggers evita edición con doble clic
@@ -131,9 +136,6 @@ class ItemRelationshipsWindow(QWidget):
         self.table.setFocusPolicy(Qt.StrongFocus)
         # Sobrescribimos el focusOutEvent para limpiar la selección:
         self.table.focusOutEvent = self._handle_table_focus_out
-
-        # # Columnas expandibles
-        # self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         # Conectamos la señal de doble clic
         self.table.cellDoubleClicked.connect(self.handle_cell_double_clicked)
@@ -284,11 +286,13 @@ class ItemRelationshipsWindow(QWidget):
         self.title_label.setText(
             f"<b style='font-size:13pt'>{num_relations}</b>"
             f" {'Relación' if num_relations == 1 else 'Relaciones'} | "
-            f"<b style='font-size:13pt'>{total_qty}</b> Unidades"
+            f"<b style='font-size:13pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
         )
 
         if num_relations == 0:
             return
+
+        self.table.horizontalHeader().setVisible(True)
 
         # ¿Hay alguna relación que tenga variant?
         self._has_variant = any(rel.get("tecneu_item", {}).get("variations") for rel in relationships)
@@ -335,7 +339,7 @@ class ItemRelationshipsWindow(QWidget):
 
             # 2) Col 1 => Imagen (QLabel con descarga asíncrona)
             label = QLabel()
-            label.setFixedSize(60, 60)
+            label.setFixedSize(self.THUMB_SIZE, self.THUMB_SIZE)
             label.setAlignment(Qt.AlignCenter)
             label.setStyleSheet(
                 """
@@ -348,7 +352,7 @@ class ItemRelationshipsWindow(QWidget):
             spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
             if os.path.exists(spinner_path):
                 spinner = QMovie(spinner_path)
-                spinner.setScaledSize(QSize(40, 40))
+                spinner.setScaledSize(QSize(int(self.THUMB_SIZE * 0.6), int(self.THUMB_SIZE * 0.6)))
                 label.setMovie(spinner)
                 spinner.start()
             else:
@@ -556,24 +560,27 @@ class ItemRelationshipsWindow(QWidget):
             label.setText(fail_text)
 
     # ------------------------------------------------------------------------
-    # Lógica de zoom (muy parecida a la del carrusel)
+    # Lógica de Zoom (muy parecida a la del carrusel)
     # ------------------------------------------------------------------------
     def configure_label_for_zoom(self, label, img_url):
+        """Configura el hover y el mouseMove si quieres zoom."""
         label.setMouseTracking(True)
-        label.enterEvent = lambda e, lbl=label: self.show_zoom_window(e, lbl, img_url)
-        label.leaveEvent = lambda e, lbl=label: self.clear_grid_and_hide_zoom(lbl)
-        label.mouseMoveEvent = lambda e, lbl=label: self.update_zoom_position(e, lbl)
+        label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
+        label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
+        label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl, img_url)
 
     def show_zoom_window(self, event, label, img_url):
         if self.hover_zoom_window is not None:
             self.hover_zoom_window.close()
 
         if img_url in self.original_images:
-            pixmap = self.original_images[img_url]
+            original_pixmap = self.original_images[img_url]
             # Reusar tu HoverZoomWindow si deseas
-            self.hover_zoom_window = HoverZoomWindow(pixmap, self.parent())
+            # self.hover_zoom_window = HoverZoomWindow(pixmap, self.parent())
+            self.hover_zoom_window = HoverZoomWindow(original_pixmap, self.ZOOM_WINDOW_SIZE, parent=self.parent())
             self.hover_zoom_window.show()
-            self.update_zoom_position(event, label)
+            # Actualiza la posición inicial de zoom
+            self.update_zoom_position(event, label, img_url)
         else:
             print("[ItemRelationships] No pixmap para zoom")
 
@@ -591,49 +598,102 @@ class ItemRelationshipsWindow(QWidget):
             self.hover_zoom_window.close()
             self.hover_zoom_window = None
 
-    def update_zoom_position(self, event, label):
+    def update_zoom_position(self, event, label, img_url):
+        """Actualiza el recorte de zoom basándose en la posición del mouse."""
         if not self.hover_zoom_window:
             return
 
-        local_pos = event.pos()
-        label_w, label_h = label.width(), label.height()
-        pm = label.pixmap()
-        if not pm:
+        # Tamaño del pixmap escalado en el label (la miniatura)
+        if not label.pixmap():
             return
 
-        pixmap_w, pixmap_h = pm.size().width(), pm.size().height()
+        scaled_pix = label.pixmap()
+        scaled_w = scaled_pix.width()
+        scaled_h = scaled_pix.height()
 
-        # Escalas
-        scale_x = pixmap_w / label_w
-        scale_y = pixmap_h / label_h
+        # Tamaño real del label (e.g. 100x100)
+        label_w = label.width()
+        label_h = label.height()
 
-        pixmap_x = int(local_pos.x() * scale_x)
-        pixmap_y = int(local_pos.y() * scale_y)
+        # Offset por centrado (si la imagen no llena todo el QLabel)
+        offset_x = (label_w - scaled_w) // 2
+        offset_y = (label_h - scaled_h) // 2
 
-        # Centramos zoom en un rect 40x40
-        zoom_x = max(0, min(pixmap_x - 20, pixmap_w - 40))
-        zoom_y = max(0, min(pixmap_y - 20, pixmap_h - 40))
+        # Posición del mouse dentro del QLabel
+        local_pos = event.pos()
 
-        self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y), scale_x, scale_y)
+        # Coordenadas dentro del área visible de la miniatura
+        x_in_scaled = local_pos.x() - offset_x
+        y_in_scaled = local_pos.y() - offset_y
 
-        # Dibuja cuadrícula (opcional), igual que en ImageCarousel
+        # Clampeamos para no salir del pixmap escalado
+        x_in_scaled = max(0, min(x_in_scaled, scaled_w))
+        y_in_scaled = max(0, min(y_in_scaled, scaled_h))
+
+        # Ahora interpretamos ZOOM_REGION como tamaño en la miniatura
+        region_size_thumb = self.ZOOM_REGION
+
+        # Queremos centrar la región en (x_in_scaled, y_in_scaled)
+        left_thumb = x_in_scaled - region_size_thumb / 2
+        top_thumb = y_in_scaled - region_size_thumb / 2
+
+        # Clampeamos para que la región no se salga de la miniatura
+        if left_thumb < 0:
+            left_thumb = 0
+        if top_thumb < 0:
+            top_thumb = 0
+        if left_thumb + region_size_thumb > scaled_w:
+            left_thumb = scaled_w - region_size_thumb
+        if top_thumb + region_size_thumb > scaled_h:
+            top_thumb = scaled_h - region_size_thumb
+
+        # Dibujar rectángulo + cuadrícula en la miniatura
         if not hasattr(label, "_original_pixmap"):
-            label._original_pixmap = pm.copy()
+            label._original_pixmap = scaled_pix.copy()
 
-        pixmap_copy = label._original_pixmap.copy()
-        painter = QPainter(pixmap_copy)
-        pen = QPen(QColor(0, 0, 255, 255))  # Azul oscuro
-        pen.setWidth(1)
-        painter.setPen(pen)
+        temp_pix = label._original_pixmap.copy()
+        painter = QPainter(temp_pix)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # -- Rectángulo azul (semitransparente) --
+        pen_rect = QPen(QColor(0, 0, 255, 128))  # Azul semitransparente
+        pen_rect.setWidth(1)
+        painter.setPen(pen_rect)
+        painter.drawRect(QRectF(left_thumb, top_thumb, region_size_thumb, region_size_thumb))
+
+        # -- Cuadrícula de puntos azules más claros --
+        pen_grid = QPen(QColor(0, 0, 255, 60))  # Azul más claro
+        pen_grid.setWidth(1)
+        painter.setPen(pen_grid)
 
         grid_size = 2
-        for gx in range(zoom_x, zoom_x + 40, grid_size):
-            for gy in range(zoom_y, zoom_y + 40, grid_size):
+        for gx in range(int(left_thumb), int(left_thumb + region_size_thumb), grid_size):
+            for gy in range(int(top_thumb), int(top_thumb + region_size_thumb), grid_size):
                 painter.drawPoint(gx, gy)
+
         painter.end()
 
-        label.setPixmap(pixmap_copy)
+        label.setPixmap(temp_pix)
         label.update()
+
+        # ---- Calcular la región correspondiente en la imagen original ----
+        # Relación de escala (original -> miniatura)
+        original_pixmap = self.original_images[img_url]
+        orig_w = original_pixmap.width()
+        orig_h = original_pixmap.height()
+
+        scale_x = orig_w / scaled_w
+        scale_y = orig_h / scaled_h
+
+        # Mapeo de la región en la miniatura a la región en la imagen original
+        left_orig = left_thumb * scale_x
+        top_orig = top_thumb * scale_y
+        width_orig = region_size_thumb * scale_x
+        height_orig = region_size_thumb * scale_y
+
+        # Pasamos el QRect a la ventana flotante
+        rect_in_original = QRectF(left_orig, top_orig, width_orig, height_orig)
+        self.hover_zoom_window.update_zoom_rect(rect_in_original)
 
 
 # ---------------------------------------------------------

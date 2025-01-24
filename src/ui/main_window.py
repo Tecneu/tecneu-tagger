@@ -1298,7 +1298,8 @@ class MainWindow(QWidget):
             self.print_thread.start()
 
     def update_status(self, message):
-        self.count_label.setText(message)
+        if self.print_thread and self.print_thread.isRunning():
+            self.count_label.setText(message)
 
     def printing_finished(self):
         # Una vez finalizado el proceso de impresión, vuelve a habilitar el botón

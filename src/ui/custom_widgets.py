@@ -1,6 +1,6 @@
 import os
 
-from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, QUrl, pyqtProperty, pyqtSignal, QRectF
+from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPoint, QPropertyAnimation, QRect, QRectF, QSize, Qt, QTimer, QUrl, pyqtProperty, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QKeySequence, QMovie, QPainter, QPalette, QPen, QPixmap, QTextDocument
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import (
@@ -218,9 +218,9 @@ class ImageCarousel(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
 
         # Parámetros personalizables
-        self.THUMB_SIZE = 100      # Tamaño máximo de miniatura (ancho o alto)
-        self.ZOOM_REGION = 150      # Tamaño del recorte en la imagen original
-        self.ZOOM_WINDOW_SIZE = 390  # Tamaño de la ventana de zoom
+        self.THUMB_SIZE = 100  # Tamaño máximo de miniatura (ancho o alto)
+        self.ZOOM_REGION = 65  # Tamaño (en px de la miniatura) del rect mostrado en el thumb
+        self.ZOOM_WINDOW_SIZE = 390  # Tamaño de la ventana de zoom (ancho x alto)
 
         # Estado de visibilidad del carrusel
         self._is_visible = False
@@ -271,11 +271,11 @@ class ImageCarousel(QWidget):
         """Hide the carousel and update state."""
         if self._is_visible:
             self.hide()
-            self.hide_zoom_window()  # Ensure zoom window is hidden
+            self.hide_zoom_window()  # Oculta ventana de zoom si existe
             self._is_visible = False
 
     def _configure_geometry(self, parent_geometry):
-        """Configures the geometry and appearance of the carousel."""
+        """Configura la geometría y apariencia del carrusel."""
         self.setGeometryWithBackground(
             x=parent_geometry.x(),
             y=parent_geometry.y() + parent_geometry.height(),  # Se posiciona justo debajo de la ventana principal
@@ -286,7 +286,7 @@ class ImageCarousel(QWidget):
         )
 
     def set_images(self, images):
-        """Add images to the carousel."""
+        """Agrega imágenes al carrusel, creando QLabels con placeholders y spinner."""
         self.clear_images()
         self.images = images
 
@@ -393,14 +393,8 @@ class ImageCarousel(QWidget):
                 label.setMovie(None)  # QMovie no es necesario una vez no hay animación
 
                 # Ajustamos la imagen al tamaño THUMB_SIZE, manteniendo relación
-                thumb = pixmap.scaled(
-                    self.THUMB_SIZE,
-                    self.THUMB_SIZE,
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation
-                )
+                thumb = pixmap.scaled(self.THUMB_SIZE, self.THUMB_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 label.setPixmap(thumb)
-                # print(f"Image loaded successfully from {url}")
 
                 # Activamos eventos de mouse
                 self.configure_label_for_zoom(label, url)
@@ -421,10 +415,6 @@ class ImageCarousel(QWidget):
         label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
         label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
         label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl, img_url)
-        # label.setMouseTracking(True)
-        # label.enterEvent = lambda event, lbl=label: self.show_zoom_window(event, lbl, img_url)
-        # label.leaveEvent = lambda event, lbl=label: self.clear_grid_and_hide_zoom(lbl)
-        # label.mouseMoveEvent = lambda event, lbl=label: self.update_zoom_position(event, lbl)
 
     def retry_or_fail(self, url, label, spinner, attempt, fail_text):
         """
@@ -456,18 +446,11 @@ class ImageCarousel(QWidget):
         """Show a zoomed-in portion of the image based on the QLabel's pixmap."""
         if self.hover_zoom_window is not None:
             self.hide_zoom_window()
-            # self.hover_zoom_window.close()
-            # self.hover_zoom_window = None  # ==============================================================
 
         # Recupera el pixmap original
         if img_url in self.original_images:
             original_pixmap = self.original_images[img_url]
-            self.hover_zoom_window = HoverZoomWindow(
-                original_pixmap,
-                self.ZOOM_WINDOW_SIZE,
-                self.ZOOM_REGION,
-                parent=self.parent()
-            )
+            self.hover_zoom_window = HoverZoomWindow(original_pixmap, self.ZOOM_WINDOW_SIZE, parent=self.parent())
             self.hover_zoom_window.show()
             # Actualiza la posición inicial de zoom
             self.update_zoom_position(event, label, img_url)
@@ -505,119 +488,89 @@ class ImageCarousel(QWidget):
         scaled_w = scaled_pix.width()
         scaled_h = scaled_pix.height()
 
-        # Tamaño real del label (podría ser, p. ej., 100x100)
+        # Tamaño real del label (e.g. 100x100)
         label_w = label.width()
         label_h = label.height()
 
-        # Offset para cuando el pixmap está centrado en el QLabel
+        # Offset por centrado (si la imagen no llena todo el QLabel)
         offset_x = (label_w - scaled_w) // 2
         offset_y = (label_h - scaled_h) // 2
 
-        # Posición local del mouse respecto al (0,0) del label
+        # Posición del mouse dentro del QLabel
         local_pos = event.pos()
 
-        # Coordenadas dentro del pixmap escalado:
-        # si el mouse está fuera del área de la imagen, ajustamos para no salir.
+        # Coordenadas dentro del área visible de la miniatura
         x_in_scaled = local_pos.x() - offset_x
         y_in_scaled = local_pos.y() - offset_y
 
-        # Clampeamos a [0, scaled_w] y [0, scaled_h]
+        # Clampeamos para no salir del pixmap escalado
         x_in_scaled = max(0, min(x_in_scaled, scaled_w))
         y_in_scaled = max(0, min(y_in_scaled, scaled_h))
 
-        # Mapeo a la imagen original
-        original_pixmap = self.original_images[img_url]
-        orig_w = original_pixmap.width()
-        orig_h = original_pixmap.height()
+        # Ahora interpretamos ZOOM_REGION como tamaño en la miniatura
+        region_size_thumb = self.ZOOM_REGION
 
-        # Relación de escala
-        scale_x = orig_w / scaled_w
-        scale_y = orig_h / scaled_h
+        # Queremos centrar la región en (x_in_scaled, y_in_scaled)
+        left_thumb = x_in_scaled - region_size_thumb / 2
+        top_thumb = y_in_scaled - region_size_thumb / 2
 
-        # Coordenada dentro de la imagen original
-        x_in_original = int(x_in_scaled * scale_x)
-        y_in_original = int(y_in_scaled * scale_y)
+        # Clampeamos para que la región no se salga de la miniatura
+        if left_thumb < 0:
+            left_thumb = 0
+        if top_thumb < 0:
+            top_thumb = 0
+        if left_thumb + region_size_thumb > scaled_w:
+            left_thumb = scaled_w - region_size_thumb
+        if top_thumb + region_size_thumb > scaled_h:
+            top_thumb = scaled_h - region_size_thumb
 
-        # Le pasamos la posición a la ventana de zoom
-        self.hover_zoom_window.update_zoom(QPoint(x_in_original, y_in_original))
-
-        # Para dibujar una "cuadrícula" (o una simple caja) en la miniatura
-        # marcando la región de zoom, podemos calcular cuántos px son
-        # en el escalado:
+        # Dibujar rectángulo + cuadrícula en la miniatura
         if not hasattr(label, "_original_pixmap"):
-            # Guardamos el pixmap escalado para no degradarlo en cada frame
             label._original_pixmap = scaled_pix.copy()
 
-        # Creamos una copia para dibujar encima
         temp_pix = label._original_pixmap.copy()
         painter = QPainter(temp_pix)
         painter.setRenderHint(QPainter.Antialiasing)
-        pen = QPen(QColor(0, 0, 255, 128))  # Azul semitransparente
-        pen.setWidth(1)
-        painter.setPen(pen)
 
-        # Tamaño de la región de zoom en coordenadas de la imagen original
-        # en la miniatura se reduce por la misma escala
-        region_w_scaled = self.ZOOM_REGION / scale_x
-        region_h_scaled = self.ZOOM_REGION / scale_y
+        # -- Rectángulo azul (semitransparente) --
+        pen_rect = QPen(QColor(0, 0, 255, 128))  # Azul semitransparente
+        pen_rect.setWidth(1)
+        painter.setPen(pen_rect)
+        painter.drawRect(QRectF(left_thumb, top_thumb, region_size_thumb, region_size_thumb))
 
-        # Coordenadas para dibujar el rect centrado en (x_in_scaled, y_in_scaled)
-        # (opcionalmente podrías dibujar una cuadrícula de puntos, pero es más simple un rect)
-        left = x_in_scaled - region_w_scaled/2
-        top = y_in_scaled - region_h_scaled/2
+        # -- Cuadrícula de puntos azules más claros --
+        pen_grid = QPen(QColor(0, 0, 255, 60))  # Azul más claro
+        pen_grid.setWidth(1)
+        painter.setPen(pen_grid)
 
-        painter.drawRect(QRectF(left, top, region_w_scaled, region_h_scaled))
+        grid_size = 2
+        for gx in range(int(left_thumb), int(left_thumb + region_size_thumb), grid_size):
+            for gy in range(int(top_thumb), int(top_thumb + region_size_thumb), grid_size):
+                painter.drawPoint(gx, gy)
+
         painter.end()
 
         label.setPixmap(temp_pix)
         label.update()
-        # local_pos = event.pos()
-        # label_width, label_height = label.width(), label.height()
-        # pixmap_width, pixmap_height = (
-        #     label.pixmap().size().width(),
-        #     label.pixmap().size().height(),
-        # )
-        #
-        # # Correct proportional mapping based on pixmap scaling
-        # scale_x = pixmap_width / label_width
-        # scale_y = pixmap_height / label_height
-        #
-        # pixmap_x = int(local_pos.x() * scale_x)
-        # pixmap_y = int(local_pos.y() * scale_y)
-        #
-        # # Adjust zoom to center on the mouse position
-        # zoom_x = max(0, min(pixmap_x - 20, pixmap_width - 40))
-        # zoom_y = max(0, min(pixmap_y - 20, pixmap_height - 40))
-        #
-        # # print("=================")
-        # # print(f"scale_x: {scale_x}, scale_y: {scale_y}")
-        # # print(f"{label_width}, {label_height}, {pixmap_width}, {pixmap_height}")
-        # # print(f"{zoom_x}, {zoom_y}")
-        # # print(f"{pixmap_width}, {pixmap_height}")
-        # # print(f"{pixmap_x}, {pixmap_y}")
-        # # print("=================")
-        # # self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y))
-        # self.hover_zoom_window.update_zoom(QPoint(zoom_x, zoom_y), scale_x, scale_y)
-        #
-        # # Save original pixmap if not already saved
-        # if not hasattr(label, "_original_pixmap"):
-        #     label._original_pixmap = label.pixmap().copy()
-        #
-        # # Draw grid on the original image
-        # pixmap = label._original_pixmap.copy()
-        # painter = QPainter(pixmap)
-        # pen = QPen(QColor(0, 0, 255, 128))  # Semi-transparent blue
-        # pen.setWidth(1)
-        # painter.setPen(pen)
-        #
-        # grid_size = 2
-        # for gx in range(zoom_x, zoom_x + 40, grid_size):
-        #     for gy in range(zoom_y, zoom_y + 40, grid_size):
-        #         painter.drawPoint(gx, gy)
-        #
-        # painter.end()
-        # label.setPixmap(pixmap)
-        # label.update()
+
+        # ---- Calcular la región correspondiente en la imagen original ----
+        # Relación de escala (original -> miniatura)
+        original_pixmap = self.original_images[img_url]
+        orig_w = original_pixmap.width()
+        orig_h = original_pixmap.height()
+
+        scale_x = orig_w / scaled_w
+        scale_y = orig_h / scaled_h
+
+        # Mapeo de la región en la miniatura a la región en la imagen original
+        left_orig = left_thumb * scale_x
+        top_orig = top_thumb * scale_y
+        width_orig = region_size_thumb * scale_x
+        height_orig = region_size_thumb * scale_y
+
+        # Pasamos el QRect a la ventana flotante
+        rect_in_original = QRectF(left_orig, top_orig, width_orig, height_orig)
+        self.hover_zoom_window.update_zoom_rect(rect_in_original)
 
     def setGeometryWithBackground(self, x, y, width, height, background_color="#000000", opacity=0.8):
         """
@@ -650,7 +603,7 @@ class ImageCarousel(QWidget):
 
 
 class HoverZoomWindow(QWidget):
-    def __init__(self, pixmap, zoom_window_size, zoom_region_size, parent=None):
+    def __init__(self, pixmap, zoom_window_size, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -658,10 +611,10 @@ class HoverZoomWindow(QWidget):
 
         # Parámetros configurables
         self.zoom_window_size = zoom_window_size
-        self.zoom_region_size = zoom_region_size
 
         self.setFixedSize(self.zoom_window_size, self.zoom_window_size)
-        # Centra la ventana flotante en torno al padre
+
+        # Centrar la ventana flotante en torno al padre
         if parent:
             center_pt = parent.geometry().center()
             self.move(center_pt - QPoint(self.zoom_window_size // 2, self.zoom_window_size // 2))
@@ -671,80 +624,40 @@ class HoverZoomWindow(QWidget):
         self.zoom_label.setAlignment(Qt.AlignCenter)
         self.zoom_label.setFixedSize(self.zoom_window_size, self.zoom_window_size)
 
-        # self.w = 360
-        # self.h = 360
-
-        # self.setFixedSize(self.w, self.h)
-        # self.move(parent.geometry().center() - QPoint(self.w // 2, self.h // 2))
-        #
-        # # self.img_path = img_path
-        # # self.pixmap = QPixmap(img_path)
-        # self.pixmap = pixmap
-        # self.zoom_label = QLabel(self)
-        # self.zoom_label.setFixedSize(self.w, self.h)
-        # self.zoom_label.setAlignment(Qt.AlignCenter)
-        # # Get the original image size
-        # self.original_width = pixmap.width()
-        # self.original_height = pixmap.height()
-        # self.scaled_w = (self.w / 100) * self.original_width
-        # self.scaled_h = (self.h / 100) * self.original_height
-        # self.scale_x = self.scaled_w / self.w
-        # self.scale_y = self.scaled_h / self.h
-        # # print(f"HOLAA=== {self.scale_x}; {self.scale_y}")
-        # # self.update_zoom(QPoint(50, 50))
-        # # self.update_zoom(QPoint(50, 50), 1, 1)
-
-    def update_zoom(self, pos_in_original):
+    def update_zoom_rect(self, rect_in_original: QRectF):
         """
-        `pos_in_original`: posición del mouse en coordenadas de la imagen original.
-        Se recorta un rect 40×40 (o el valor que hayas configurado) centrado en esta posición,
-        luego se escala al tamaño de la ventana.
+        Recibe la región (QRectF) de la imagen original que se desea mostrar,
+        la clamea si excede los bordes, y hace el .copy() y .scaled() para
+        mostrarla en la etiqueta.
         """
-        x = pos_in_original.x()
-        y = pos_in_original.y()
+        left = rect_in_original.x()
+        top = rect_in_original.y()
+        w = rect_in_original.width()
+        h = rect_in_original.height()
 
-        orig_w = self.original_pixmap.width()
-        orig_h = self.original_pixmap.height()
+        # Clampeo por si la región excede la imagen original
+        max_left = self.original_pixmap.width() - w
+        max_top = self.original_pixmap.height() - h
 
-        half = self.zoom_region_size // 2
+        if left < 0:
+            left = 0
+        if top < 0:
+            top = 0
+        if left > max_left:
+            left = max_left
+        if top > max_top:
+            top = max_top
 
-        # Calculamos coordenadas del recorte centrado
-        left = int(x - half)
-        top = int(y - half)
+        source_rect = QRect(int(left), int(top), int(w), int(h))
 
-        # Aseguramos que no se salga de la imagen original
-        left = max(0, min(left, orig_w - self.zoom_region_size))
-        top = max(0, min(top, orig_h - self.zoom_region_size))
+        # Evitar que el ancho/alto sean negativos por redondeos
+        if source_rect.width() <= 0 or source_rect.height() <= 0:
+            return
 
-        # Creamos el QRect de recorte
-        source_rect = QRect(left, top, self.zoom_region_size, self.zoom_region_size)
-
-        # Copiamos y escalamos para mostrarlo en la ventana
+        # Recortamos y escalamos para la ventana de zoom
         cropped = self.original_pixmap.copy(source_rect)
-        zoomed_pixmap = cropped.scaled(
-            self.zoom_window_size,
-            self.zoom_window_size,
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation
-        )
+        zoomed_pixmap = cropped.scaled(self.zoom_window_size, self.zoom_window_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.zoom_label.setPixmap(zoomed_pixmap)
-        # max_scale = max(self.scale_x, self.scale_y)
-        # zoom_size = round(40 * max_scale)
-        # print(zoom_size // 2)
-        # print(f"{self.original_width}; {self.original_height}")
-        # print(f"QRECT ===== {pos.x()}, {pos.y()}")
-        # print(f"Max_X = {max(0, pos.x())}")
-        # print(f"Max_Y = {max(0, pos.y())}")
-        # print(f"ScaleX: {self.scale_x}; ScakeY: {self.scale_y}")
-        # source_rect = QRect(
-        #     round(max(0, pos.x()) * self.scale_x),
-        #     round(max(0, pos.y()) * self.scale_y),
-        #     zoom_size,
-        #     zoom_size,
-        # )
-        #
-        # zoomed_pixmap = self.pixmap.copy(source_rect).scaled(self.w, self.h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        # self.zoom_label.setPixmap(zoomed_pixmap)
 
 
 class ToggleSwitch(QWidget):
