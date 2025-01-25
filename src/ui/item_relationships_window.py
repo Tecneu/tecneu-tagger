@@ -314,11 +314,11 @@ class ItemRelationshipsWindow(QWidget):
             return
 
         # Texto con 2 puntos más grande y en negritas los números
-        # Ejemplo: Relaciones: <b style='font-size:12pt'>3</b> | <b style='font-size:12pt'>20</b> Unidades
+        # Ejemplo: Relaciones: <b style='font-size:12pt'>3</b> | <b style='font-size:12pt'>20</b> Unidades │|║
         self.title_label.setText(
-            f"<b style='font-size:13pt'>{num_relations}</b>"
-            f" {'Relación' if num_relations == 1 else 'Relaciones'} | "
-            f"<b style='font-size:13pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
+            f"<b style='font-size:16pt'>{num_relations}</b>"
+            f" {'Producto/Relación' if num_relations == 1 else 'Productos/Relaciones'}   ║   "
+            f"<b style='font-size:16pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
         )
 
         self.table.horizontalHeader().setVisible(True)

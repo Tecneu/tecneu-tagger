@@ -37,6 +37,7 @@ from workers.search_worker import SearchWorker
 from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, SpinBoxWidget, ToggleSwitch, TransparentOverlayFrame
 from .item_relationships_window import ItemRelationshipsWindow
 from .zpl_preview import LabelViewer
+from utils import GiantOverlayMessage
 
 user32 = ctypes.windll.user32
 
@@ -81,6 +82,8 @@ class MainWindow(QWidget):
 
         # Crea un overlay pero no lo muestres aún
         self.loading_overlay = None
+
+        self.overlay_message = GiantOverlayMessage(parent=self)
 
         self.updating_zpl_from_result = False
         self.latest_item_data = None
@@ -953,19 +956,34 @@ class MainWindow(QWidget):
         # Si hay relationships
         relationships = item.get("tecneu_item_relationships", [])
         if relationships:
-            self.show_message_overlay(
-                message="<b style='font-size:48pt'>20</b> Unidades<br><b style='font-size:26pt'>3</b> Productos",
-                center_all_windows=True,  # True => toma en cuenta subventanas
-                parent=None,  # None => centrado relativo a main_window
-                bg_color="rgba(0, 0, 128, 0.85)",  # Fondo semitransparente
-                # bg_color="#00008080",
-                text_color="#FFFFFF",
-                font_size=16,
+            # 3) Cuando quieras mostrar un mensaje:
+            num_relations = len(relationships)
+            total_qty = sum(rel.get("quantity", 0) for rel in relationships)
+            self.overlay_message.show_message(
+                message=f"<b style='font-size:48pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
+                        f"{f"<br><b style='font-size:26pt'>{num_relations}</b> {'Producto' if num_relations == 1 else 'Productos'}" if total_qty > 1 else ""}",
                 width=500,
                 height=200,
-                duration=8000,  # 4 segundos
+                duration=4000,  # se oculta tras 4s
+                bg_color="rgba(0,0,128,0.85)",  # 85% opaco
+                text_color="#FFFFFF",
+                font_size=16,
                 is_html=True,
+                center_all_windows=True,  # si deseas unir geom. con self.carousel, etc.
             )
+            # self.show_message_overlay(
+            #     message="<b style='font-size:48pt'>20</b> Unidades<br><b style='font-size:26pt'>3</b> Productos",
+            #     center_all_windows=True,  # True => toma en cuenta subventanas
+            #     parent=None,  # None => centrado relativo a main_window
+            #     bg_color="rgba(0, 0, 128, 0.85)",  # Fondo semitransparente
+            #     # bg_color="#00008080",
+            #     text_color="#FFFFFF",
+            #     font_size=16,
+            #     width=500,
+            #     height=200,
+            #     duration=8000,  # 4 segundos
+            #     is_html=True,
+            # )
             self.relationships_window.set_relationships_data(relationships)
             self.relationships_window.show_relationships(parent_geometry=self.geometry())
         else:
@@ -1443,102 +1461,102 @@ class MainWindow(QWidget):
             self.loading_overlay.setGeometry(self.rect())
         super().resizeEvent(event)  # Mantiene el comportamiento original
 
-    def show_message_overlay(
-        self,
-        message,
-        center_all_windows=False,
-        parent=None,
-        bg_color="rgba(0, 0, 0, 0.5)",
-        text_color="#FFFFFF",
-        font_size=24,
-        width=400,
-        height=200,
-        duration=3000,
-        is_html=False,
-    ):
-        """
-        Muestra un recuadro de 'width x height' con fondo 'bg_color' semitransparente,
-        y un texto grande centrado.
-
-        :param message: Texto a mostrar (puede ser HTML si is_html=True).
-        :param center_all_windows: Si True, calcula un bounding rect que incluye
-                                   self, self.carousel y self.relationships_window (si están visibles).
-        :param parent: Si no es None, se usará esa geometría como referencia.
-                       De lo contrario, se usa la geometry() de self (o la unida con subventanas).
-        :param bg_color: p.ej "rgba(0,0,128,0.4)" o "#00008080" => semitransparente
-        :param text_color: Color del texto.
-        :param font_size: Tamaño de letra (puntos).
-        :param width: Ancho (px) del recuadro.
-        :param height: Alto (px) del recuadro.
-        :param duration: Tiempo en ms que se mostrará; 0 => indefinidamente.
-        :param is_html: True => 'message' se interpretará como HTML, False => texto plano.
-        """
-
-        # 1) Calculamos el rectángulo de referencia
-        if center_all_windows:
-            bounding_rect = self.geometry()
-            if hasattr(self, "carousel") and self.carousel.is_visible:
-                bounding_rect = bounding_rect.united(self.carousel.geometry())
-            if hasattr(self, "relationships_window") and self.relationships_window.is_visible:
-                bounding_rect = bounding_rect.united(self.relationships_window.geometry())
-        else:
-            if parent is not None:
-                bounding_rect = parent.geometry()
-            else:
-                bounding_rect = self.geometry()
-
-        # 2) Creamos un QFrame flotante, con paintEvent personalizado
-        overlay_frame = TransparentOverlayFrame(bg_color)
-        overlay_frame.setObjectName("CustomOverlayFrame")
-
-        # 3) Ajustamos flags para que quede encima de todo
-        #    Qt.Popup tiende a forzar la prioridad en Z-order, aun sobre ventanas topmost
-        overlay_frame.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.Popup)
-
-        # 4) Ajustamos tamaño
-        overlay_frame.setFixedSize(width, height)
-
-        # 5) Calculamos posición para centrar en bounding_rect
-        center_x = bounding_rect.center().x() - (width // 2)
-        center_y = bounding_rect.center().y() - (height // 2)
-        overlay_frame.move(center_x, center_y)
-
-        # 6) Layout interno y QLabel para el texto
-        layout = QVBoxLayout(overlay_frame)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.setAlignment(Qt.AlignCenter)
-
-        label = QLabel()
-        label.setAlignment(Qt.AlignCenter)
-
-        if is_html:
-            # Insertar color y tamaño en HTML inline
-            html_formatted = f"<span style='color:{text_color}; font-size:{font_size}pt;'>{message}</span>"
-            label.setText(html_formatted)
-            # No ponemos background en el label
-            label.setStyleSheet("background-color: transparent;")
-        else:
-            # Texto plano: usamos styleSheet
-            label.setText(message)
-            label.setStyleSheet(f"color: {text_color}; font-size: {font_size}pt; background-color: transparent;")
-
-        layout.addWidget(label, alignment=Qt.AlignCenter)
-
-        # 7) Mostrar y forzar a primer plano
-        overlay_frame.show()
-        overlay_frame.raise_()
-        overlay_frame.activateWindow()
-
-        # 8) Si duration > 0 => cerrarlo automáticamente
-        if duration > 0:
-            # Creamos un QTimer y lo guardamos en overlay_frame para que no sea recolectado
-            close_timer = QTimer(overlay_frame)
-            close_timer.setSingleShot(True)
-            close_timer.setInterval(duration)
-
-            def _close_overlay():
-                overlay_frame.close()
-
-            close_timer.timeout.connect(_close_overlay)
-            close_timer.start()
+    # def show_message_overlay(
+    #     self,
+    #     message,
+    #     center_all_windows=False,
+    #     parent=None,
+    #     bg_color="rgba(0, 0, 0, 0.5)",
+    #     text_color="#FFFFFF",
+    #     font_size=24,
+    #     width=400,
+    #     height=200,
+    #     duration=3000,
+    #     is_html=False,
+    # ):
+    #     """
+    #     Muestra un recuadro de 'width x height' con fondo 'bg_color' semitransparente,
+    #     y un texto grande centrado.
+    #
+    #     :param message: Texto a mostrar (puede ser HTML si is_html=True).
+    #     :param center_all_windows: Si True, calcula un bounding rect que incluye
+    #                                self, self.carousel y self.relationships_window (si están visibles).
+    #     :param parent: Si no es None, se usará esa geometría como referencia.
+    #                    De lo contrario, se usa la geometry() de self (o la unida con subventanas).
+    #     :param bg_color: p.ej "rgba(0,0,128,0.4)" o "#00008080" => semitransparente
+    #     :param text_color: Color del texto.
+    #     :param font_size: Tamaño de letra (puntos).
+    #     :param width: Ancho (px) del recuadro.
+    #     :param height: Alto (px) del recuadro.
+    #     :param duration: Tiempo en ms que se mostrará; 0 => indefinidamente.
+    #     :param is_html: True => 'message' se interpretará como HTML, False => texto plano.
+    #     """
+    #
+    #     # 1) Calculamos el rectángulo de referencia
+    #     if center_all_windows:
+    #         bounding_rect = self.geometry()
+    #         if hasattr(self, "carousel") and self.carousel.is_visible:
+    #             bounding_rect = bounding_rect.united(self.carousel.geometry())
+    #         if hasattr(self, "relationships_window") and self.relationships_window.is_visible:
+    #             bounding_rect = bounding_rect.united(self.relationships_window.geometry())
+    #     else:
+    #         if parent is not None:
+    #             bounding_rect = parent.geometry()
+    #         else:
+    #             bounding_rect = self.geometry()
+    #
+    #     # 2) Creamos un QFrame flotante, con paintEvent personalizado
+    #     overlay_frame = TransparentOverlayFrame(bg_color)
+    #     overlay_frame.setObjectName("CustomOverlayFrame")
+    #
+    #     # 3) Ajustamos flags para que quede encima de todo
+    #     #    Qt.Popup tiende a forzar la prioridad en Z-order, aun sobre ventanas topmost
+    #     overlay_frame.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.Popup)
+    #
+    #     # 4) Ajustamos tamaño
+    #     overlay_frame.setFixedSize(width, height)
+    #
+    #     # 5) Calculamos posición para centrar en bounding_rect
+    #     center_x = bounding_rect.center().x() - (width // 2)
+    #     center_y = bounding_rect.center().y() - (height // 2)
+    #     overlay_frame.move(center_x, center_y)
+    #
+    #     # 6) Layout interno y QLabel para el texto
+    #     layout = QVBoxLayout(overlay_frame)
+    #     layout.setContentsMargins(0, 0, 0, 0)
+    #     layout.setSpacing(0)
+    #     layout.setAlignment(Qt.AlignCenter)
+    #
+    #     label = QLabel()
+    #     label.setAlignment(Qt.AlignCenter)
+    #
+    #     if is_html:
+    #         # Insertar color y tamaño en HTML inline
+    #         html_formatted = f"<span style='color:{text_color}; font-size:{font_size}pt;'>{message}</span>"
+    #         label.setText(html_formatted)
+    #         # No ponemos background en el label
+    #         label.setStyleSheet("background-color: transparent;")
+    #     else:
+    #         # Texto plano: usamos styleSheet
+    #         label.setText(message)
+    #         label.setStyleSheet(f"color: {text_color}; font-size: {font_size}pt; background-color: transparent;")
+    #
+    #     layout.addWidget(label, alignment=Qt.AlignCenter)
+    #
+    #     # 7) Mostrar y forzar a primer plano
+    #     overlay_frame.show()
+    #     overlay_frame.raise_()
+    #     overlay_frame.activateWindow()
+    #
+    #     # 8) Si duration > 0 => cerrarlo automáticamente
+    #     if duration > 0:
+    #         # Creamos un QTimer y lo guardamos en overlay_frame para que no sea recolectado
+    #         close_timer = QTimer(overlay_frame)
+    #         close_timer.setSingleShot(True)
+    #         close_timer.setInterval(duration)
+    #
+    #         def _close_overlay():
+    #             overlay_frame.close()
+    #
+    #         close_timer.timeout.connect(_close_overlay)
+    #         close_timer.start()
