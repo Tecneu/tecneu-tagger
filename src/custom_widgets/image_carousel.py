@@ -118,7 +118,7 @@ class ImageCarousel(QWidget):
             # Inicia la descarga con reintentos
             self.download_image(img_url, label, spinner, attempt=1)
 
-        print("All requests sent.")
+        # print("All requests sent.")
 
     def download_image(self, url, label, spinner, attempt):
         """
@@ -147,7 +147,7 @@ class ImageCarousel(QWidget):
         reply.finished.connect(lambda: self.handle_reply(reply))
 
         timer.start()
-        print(f"Sending request to {url}, attempt={attempt}")
+        # print(f"Sending request to {url}, attempt={attempt}")
 
     def handle_timeout(self, reply):
         """

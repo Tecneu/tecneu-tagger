@@ -37,7 +37,7 @@ from workers.search_worker import SearchWorker
 from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, SpinBoxWidget, ToggleSwitch, TransparentOverlayFrame
 from .item_relationships_window import ItemRelationshipsWindow
 from .zpl_preview import LabelViewer
-from utils import GiantOverlayMessage
+from utils import OverlayMessage, GlobalKeyEventFilter
 
 user32 = ctypes.windll.user32
 
@@ -83,7 +83,7 @@ class MainWindow(QWidget):
         # Crea un overlay pero no lo muestres aún
         self.loading_overlay = None
 
-        self.overlay_message = GiantOverlayMessage(parent=self)
+        self.overlay_message = OverlayMessage(parent=self)
 
         self.updating_zpl_from_result = False
         self.latest_item_data = None
@@ -122,6 +122,11 @@ class MainWindow(QWidget):
         self.shortcut_hide = QShortcut(QKeySequence("Ctrl+H"), self)
         self.shortcut_hide.setContext(Qt.ApplicationShortcut)
         self.shortcut_hide.activated.connect(self.toggle_emergent_windows)
+
+        # Creamos el shortcut Ctrl+G
+        self.shortcut_clear_focus = QShortcut(QKeySequence("Ctrl+G"), self)
+        self.shortcut_clear_focus.setContext(Qt.ApplicationShortcut)
+        self.shortcut_clear_focus.activated.connect(self.clear_focus)
 
     def apply_new_delay(self):
         # Aplica el nuevo delay al hilo de impresión
@@ -960,32 +965,19 @@ class MainWindow(QWidget):
             num_relations = len(relationships)
             total_qty = sum(rel.get("quantity", 0) for rel in relationships)
             self.overlay_message.show_message(
-                message=f"<b style='font-size:48pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
-                        f"{f"<br><b style='font-size:26pt'>{num_relations}</b> {'Producto' if num_relations == 1 else 'Productos'}" if total_qty > 1 else ""}",
-                width=500,
+                message=f"<b style='font-size:56pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
+                        f"{f"<br><b style='font-size:36pt'>{num_relations}</b> {'Producto' if num_relations == 1 else 'Productos'}" if total_qty > 1 else ""}",
+                width=400,
                 height=200,
                 duration=4000,  # se oculta tras 4s
-                bg_color="rgba(0,0,128,0.85)",  # 85% opaco
+                bg_color="rgba(4,118,217,0.9)",  # 90% opaco
                 text_color="#FFFFFF",
-                font_size=16,
+                font_size=24,
                 is_html=True,
-                center_all_windows=True,  # si deseas unir geom. con self.carousel, etc.
             )
-            # self.show_message_overlay(
-            #     message="<b style='font-size:48pt'>20</b> Unidades<br><b style='font-size:26pt'>3</b> Productos",
-            #     center_all_windows=True,  # True => toma en cuenta subventanas
-            #     parent=None,  # None => centrado relativo a main_window
-            #     bg_color="rgba(0, 0, 128, 0.85)",  # Fondo semitransparente
-            #     # bg_color="#00008080",
-            #     text_color="#FFFFFF",
-            #     font_size=16,
-            #     width=500,
-            #     height=200,
-            #     duration=8000,  # 4 segundos
-            #     is_html=True,
-            # )
             self.relationships_window.set_relationships_data(relationships)
             self.relationships_window.show_relationships(parent_geometry=self.geometry())
+            self.clear_focus()
         else:
             self.set_status_message(
                 "No se encontraron relaciones del producto",
@@ -1159,6 +1151,17 @@ class MainWindow(QWidget):
         if focused_widget:
             focused_widget.clearFocus()
 
+        # Si la tabla está en foco, o si quieres siempre limpiarla:
+        if self.relationships_window and self.relationships_window.is_visible:
+            if self.relationships_window.table.hasFocus():
+                print("FUCUS EN TABLEEEEE=====")
+                self.relationships_window.table.clearFocus()
+                self.relationships_window.table.clearSelection()
+        # También limpia la tabla de relationships_window
+        # if self.relationships_window and self.relationships_window.is_visible:
+        #     self.relationships_window.clear_focus_in_table()
+
+
     def mousePressEvent(self, event):
         """
         Quita el foco de cualquier widget cuando se hace clic fuera de ellos en la ventana.
@@ -1166,7 +1169,7 @@ class MainWindow(QWidget):
         self.clear_focus()
         super().mousePressEvent(event)
 
-    def keyPressEvent(self, event):
+    def handle_global_key_press(self, event):
         """
         Maneja eventos de teclado para quitar el foco y otros controles.
         """
@@ -1178,12 +1181,14 @@ class MainWindow(QWidget):
             if current_value > self.delay_slider.minimum():
                 self.delay_slider.setValue(current_value - 1)
                 self.delay_update_timer.start()  # Reinicia el temporizador
+            return True  # Indica que 'consumimos' el evento
         elif key == Qt.Key_Right:
             # Aumentar el valor del slider
             current_value = self.delay_slider.value()
             if current_value < self.delay_slider.maximum():
                 self.delay_slider.setValue(current_value + 1)
                 self.delay_update_timer.start()  # Reinicia el temporizador
+            return True
         elif key == Qt.Key_Space:
             # Pausar/reanudar la impresión
             # self.control_printing()
@@ -1194,19 +1199,24 @@ class MainWindow(QWidget):
             #     self.space_press_timer.stop()
             #     self.handle_double_space_press()
             self.clear_focus()
+            return True
         elif key == Qt.Key_Delete:
             # Detener la impresión
             self.clear_focus()
             self.stop_printing()
+            return True
         elif key == Qt.Key_Escape:
             self.clear_focus()
+            return True
         elif key in (Qt.Key_Up, Qt.Key_Down):
             if event.key() == Qt.Key_Up:
                 self.increment()
             elif event.key() == Qt.Key_Down:
                 self.decrement()
-        else:
-            super().keyPressEvent(event)  # Llama al método base para manejar otras teclas
+            return True
+
+        # Si la tecla no está en tu lista, no la consumes:
+        return False
 
     def handle_single_space_press(self):
         """Handle single space key press for pausing/resuming."""
@@ -1460,103 +1470,3 @@ class MainWindow(QWidget):
         if self.loading_overlay is not None:
             self.loading_overlay.setGeometry(self.rect())
         super().resizeEvent(event)  # Mantiene el comportamiento original
-
-    # def show_message_overlay(
-    #     self,
-    #     message,
-    #     center_all_windows=False,
-    #     parent=None,
-    #     bg_color="rgba(0, 0, 0, 0.5)",
-    #     text_color="#FFFFFF",
-    #     font_size=24,
-    #     width=400,
-    #     height=200,
-    #     duration=3000,
-    #     is_html=False,
-    # ):
-    #     """
-    #     Muestra un recuadro de 'width x height' con fondo 'bg_color' semitransparente,
-    #     y un texto grande centrado.
-    #
-    #     :param message: Texto a mostrar (puede ser HTML si is_html=True).
-    #     :param center_all_windows: Si True, calcula un bounding rect que incluye
-    #                                self, self.carousel y self.relationships_window (si están visibles).
-    #     :param parent: Si no es None, se usará esa geometría como referencia.
-    #                    De lo contrario, se usa la geometry() de self (o la unida con subventanas).
-    #     :param bg_color: p.ej "rgba(0,0,128,0.4)" o "#00008080" => semitransparente
-    #     :param text_color: Color del texto.
-    #     :param font_size: Tamaño de letra (puntos).
-    #     :param width: Ancho (px) del recuadro.
-    #     :param height: Alto (px) del recuadro.
-    #     :param duration: Tiempo en ms que se mostrará; 0 => indefinidamente.
-    #     :param is_html: True => 'message' se interpretará como HTML, False => texto plano.
-    #     """
-    #
-    #     # 1) Calculamos el rectángulo de referencia
-    #     if center_all_windows:
-    #         bounding_rect = self.geometry()
-    #         if hasattr(self, "carousel") and self.carousel.is_visible:
-    #             bounding_rect = bounding_rect.united(self.carousel.geometry())
-    #         if hasattr(self, "relationships_window") and self.relationships_window.is_visible:
-    #             bounding_rect = bounding_rect.united(self.relationships_window.geometry())
-    #     else:
-    #         if parent is not None:
-    #             bounding_rect = parent.geometry()
-    #         else:
-    #             bounding_rect = self.geometry()
-    #
-    #     # 2) Creamos un QFrame flotante, con paintEvent personalizado
-    #     overlay_frame = TransparentOverlayFrame(bg_color)
-    #     overlay_frame.setObjectName("CustomOverlayFrame")
-    #
-    #     # 3) Ajustamos flags para que quede encima de todo
-    #     #    Qt.Popup tiende a forzar la prioridad en Z-order, aun sobre ventanas topmost
-    #     overlay_frame.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.Popup)
-    #
-    #     # 4) Ajustamos tamaño
-    #     overlay_frame.setFixedSize(width, height)
-    #
-    #     # 5) Calculamos posición para centrar en bounding_rect
-    #     center_x = bounding_rect.center().x() - (width // 2)
-    #     center_y = bounding_rect.center().y() - (height // 2)
-    #     overlay_frame.move(center_x, center_y)
-    #
-    #     # 6) Layout interno y QLabel para el texto
-    #     layout = QVBoxLayout(overlay_frame)
-    #     layout.setContentsMargins(0, 0, 0, 0)
-    #     layout.setSpacing(0)
-    #     layout.setAlignment(Qt.AlignCenter)
-    #
-    #     label = QLabel()
-    #     label.setAlignment(Qt.AlignCenter)
-    #
-    #     if is_html:
-    #         # Insertar color y tamaño en HTML inline
-    #         html_formatted = f"<span style='color:{text_color}; font-size:{font_size}pt;'>{message}</span>"
-    #         label.setText(html_formatted)
-    #         # No ponemos background en el label
-    #         label.setStyleSheet("background-color: transparent;")
-    #     else:
-    #         # Texto plano: usamos styleSheet
-    #         label.setText(message)
-    #         label.setStyleSheet(f"color: {text_color}; font-size: {font_size}pt; background-color: transparent;")
-    #
-    #     layout.addWidget(label, alignment=Qt.AlignCenter)
-    #
-    #     # 7) Mostrar y forzar a primer plano
-    #     overlay_frame.show()
-    #     overlay_frame.raise_()
-    #     overlay_frame.activateWindow()
-    #
-    #     # 8) Si duration > 0 => cerrarlo automáticamente
-    #     if duration > 0:
-    #         # Creamos un QTimer y lo guardamos en overlay_frame para que no sea recolectado
-    #         close_timer = QTimer(overlay_frame)
-    #         close_timer.setSingleShot(True)
-    #         close_timer.setInterval(duration)
-    #
-    #         def _close_overlay():
-    #             overlay_frame.close()
-    #
-    #         close_timer.timeout.connect(_close_overlay)
-    #         close_timer.start()

@@ -52,7 +52,7 @@ class ItemRelationshipsWindow(QWidget):
         self.title_label.setStyleSheet(
             """
             QLabel {
-                background-color: rgb(255, 128, 128);
+                background-color: #0487D9;
                 color: white;
                 font-weight: normal;  /* texto normal, usaremos HTML para negritas */
                 padding: 5px;
@@ -680,6 +680,14 @@ class ItemRelationshipsWindow(QWidget):
         # Pasamos el QRect a la ventana flotante
         rect_in_original = QRectF(left_orig, top_orig, width_orig, height_orig)
         self.hover_zoom_window.update_zoom_rect(rect_in_original)
+
+    def clear_focus_in_table(self):
+        """
+        Quita el foco y la selección de la tabla
+        (o de cualquier otro widget que quieras).
+        """
+        self.table.clearSelection()
+        self.table.clearFocus()
 
 
 # ---------------------------------------------------------
