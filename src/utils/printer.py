@@ -4,10 +4,11 @@ import unicodedata
 
 import win32print
 
-# utils.py
+# printer.py
 __all__ = ["list_printers_to_json", "normalize_zpl"]
 
 
+@staticmethod
 def is_thermal_printer(printer_name):
     """
     Verifica si una impresora es térmica basada en su controlador, procesador de impresión o nombre del puerto.

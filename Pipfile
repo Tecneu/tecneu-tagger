@@ -5,7 +5,8 @@ name = "pypi"
 
 [scripts]
 format = "cmd /c \"black . && echo. && echo ============ [FIN BLACK] ============ && echo. && isort . && echo. && echo ============ [FIN ISORT] ============\""
-lint = "cmd /c \"flake8 . --exit-zero && echo. && echo ============ [FIN FLAKE8] ============ && echo. && pylint . --exit-zero && echo. && echo ============ [FIN ISORT] ============\""
+#lint = "cmd /c \"flake8 . --exit-zero && echo. && echo ============ [FIN FLAKE8] ============ && echo. && pylint . --exit-zero && echo. && echo ============ [FIN ISORT] ============\""
+lint = "cmd /c \"flake8 . --select=F401 --exit-zero && echo. && echo ============ [FIN FLAKE8] ============ && echo. && pylint . --exit-zero && echo. && echo ============ [FIN PYLINT] ============\""
 typecheck = "mypy ."
 
 [packages]

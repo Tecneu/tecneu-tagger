@@ -1,14 +1,16 @@
 import os
 
-from PyQt5.QtCore import QPoint, QRectF, QSize, Qt, QTimer, QUrl
-from PyQt5.QtGui import QBrush, QColor, QFont, QMovie, QPainter, QPalette, QPen, QPixmap
+from PyQt5.QtCore import QRectF, QSize, Qt, QTimer, QUrl
+from PyQt5.QtGui import QBrush, QColor, QMovie, QPainter, QPalette, QPen, QPixmap
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt5.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QLabel, QSizePolicy, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QAbstractItemView, QApplication, QHBoxLayout, QHeaderView, QLabel, QTableWidgetItem, QVBoxLayout, QWidget
 
 from config import BASE_ASSETS_PATH
+from custom_widgets.hover_zoom_window import HoverZoomWindow
+from utils import show_message_overlay, show_temporary_message
 
-from .custom_widgets import CustomTableWidget, HoverZoomWindow
+from .custom_widgets import CustomTableWidget
 
 __all__ = ["ItemRelationshipsWindow"]
 
@@ -86,15 +88,29 @@ class ItemRelationshipsWindow(QWidget):
         # - Texto y bordes blancos
         # - Al seleccionar: azul translúcido
         # - Encabezado horizontal también transparente
+        self.table.setShowGrid(False)
         self.table.setStyleSheet(
             """
+            QTableWidget::item {
+                border: 4px solid gray;
+                padding: 4px;
+            }
+            QTableView::item {
+                border: 1px solid gray;
+            }
+            QTableView {
+                gridline-color: transparent; /* o background-color: transparent; */
+            }
             QTableWidget {
                 background-color: transparent;
                 color: white;
-                gridline-color: gray;
+                /* gridline-color: gray; */
+                border: none;
                 selection-background-color: rgba(0, 0, 255, 80); /* Azul translúcido */
                 selection-color: white;
                 font-size: 11pt;
+                padding: 0px;
+                margin 0px;
             }
             /* Encabezados horizontales */
             QHeaderView::section {
@@ -139,6 +155,19 @@ class ItemRelationshipsWindow(QWidget):
 
         # Conectamos la señal de doble clic
         self.table.cellDoubleClicked.connect(self.handle_cell_double_clicked)
+
+        self.table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+
+        # Ajustar el 'step' del scroll
+        scrollbar = self.table.verticalScrollBar()
+        scrollbar.setSingleStep(5)  # píxeles por 'paso' de rueda
+        scrollbar.setPageStep(20)  # al pulsar area vacía en scrollbar
+
+        # para horizontal, si procede
+        scrollbar_h = self.table.horizontalScrollBar()
+        scrollbar_h.setSingleStep(5)
+        scrollbar_h.setPageStep(20)
 
         self.click_sound_player = QMediaPlayer()
         self.click_sound_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.fspath(BASE_ASSETS_PATH / "sounds" / "click.mp3"))))
@@ -193,7 +222,7 @@ class ItemRelationshipsWindow(QWidget):
             width=parent_geometry.width(),
             height=self.height(),  # Usamos la altura actual fija
             background_color="#000000",  # Negro
-            opacity=0.65,
+            opacity=0.80,
         )
         # Después de ajustar geometry, recalculamos anchos
         self._adjust_table_columns(parent_geometry.width())
@@ -205,7 +234,7 @@ class ItemRelationshipsWindow(QWidget):
         """
         Basado en el ancho del parent, repartimos:
          - col 0 => 70 px (Cant.)
-         - col 1 => 60 px (Imagen)
+         - col 1 => 70 px (Imagen)
          - col 2 => (restante * 0.7) si hay variante, o (restante * 1.0) si no
          - col 3 => (restante * 0.3) si hay variante
         """
@@ -216,11 +245,11 @@ class ItemRelationshipsWindow(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.table.setColumnWidth(0, 70)
-        self.table.setColumnWidth(1, 60)
+        self.table.setColumnWidth(1, 70)
 
         # Ancho restante para Título/Variante
         variant_additional_width = 16 if self._has_variant else 0
-        used_width = 70 + 60 + 24 + variant_additional_width  # Cant., Imagen y padding
+        used_width = 70 + 70 + 24 + variant_additional_width  # Cant., Imagen y padding
         remaining_width = max(parent_width - used_width, 50)  # Evitar negativos
 
         if self._has_variant and self.table.columnCount() == 4:
@@ -268,7 +297,7 @@ class ItemRelationshipsWindow(QWidget):
          - Col 0 → "Cant."
          - Col 1 → "Imagen"
          - Col 2 ⇾ "Título"
-         - Col 3 ⇾ "Variante" (sólo si alguna relación tiene variations)
+         - Col 3 ⇾ "Variante" (solo si alguna relación tiene variations)
         También actualiza el label superior con la cuenta de relaciones y la suma de cantidades.
         """
         self.clear_relationships()
@@ -281,6 +310,9 @@ class ItemRelationshipsWindow(QWidget):
         num_relations = len(relationships)
         total_qty = sum(rel.get("quantity", 0) for rel in relationships)
 
+        if num_relations == 0:
+            return
+
         # Texto con 2 puntos más grande y en negritas los números
         # Ejemplo: Relaciones: <b style='font-size:12pt'>3</b> | <b style='font-size:12pt'>20</b> Unidades
         self.title_label.setText(
@@ -288,9 +320,6 @@ class ItemRelationshipsWindow(QWidget):
             f" {'Relación' if num_relations == 1 else 'Relaciones'} | "
             f"<b style='font-size:13pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
         )
-
-        if num_relations == 0:
-            return
 
         self.table.horizontalHeader().setVisible(True)
 
@@ -349,6 +378,12 @@ class ItemRelationshipsWindow(QWidget):
                 }
             """
             )
+            image_container = QWidget()
+            layout = QHBoxLayout()
+            layout.setContentsMargins(0, 0, 0, 0)  # sin margen
+            layout.setSpacing(0)
+            layout.addWidget(label, alignment=Qt.AlignCenter)
+            image_container.setLayout(layout)
             spinner_path = os.fspath(BASE_ASSETS_PATH / "icons" / "spinner.gif")  # Ajusta la ruta
             if os.path.exists(spinner_path):
                 spinner = QMovie(spinner_path)
@@ -359,7 +394,7 @@ class ItemRelationshipsWindow(QWidget):
                 spinner = None
                 label.setText("Cargando...")
 
-            self.table.setCellWidget(row_idx, 1, label)
+            self.table.setCellWidget(row_idx, 1, image_container)
 
             # Descargamos la imagen
             pictures = tecneu_item.get("pictures", [])
@@ -391,6 +426,14 @@ class ItemRelationshipsWindow(QWidget):
         # Ajustar altura de filas
         self.table.resizeRowsToContents()
 
+        # Luego forzamos min 70, max 90
+        for i in range(self.table.rowCount()):
+            row_height = self.table.rowHeight(i)
+            if row_height < 70:
+                self.table.setRowHeight(i, 70)
+            elif row_height > 90:
+                self.table.setRowHeight(i, 90)
+
     def clear_relationships(self):
         """Limpia la tabla y pixmaps."""
         self.table.setRowCount(0)
@@ -410,69 +453,9 @@ class ItemRelationshipsWindow(QWidget):
             self.click_sound_player.play()
             QApplication.clipboard().setText(item_id)
             # Mostramos un mensaje flotante, por ejemplo:
-            self.show_temporary_message(
-                text=f"Copiado: {item_id}", bg_color="#222222", text_color="#FFFFFF", duration=2000, position_x="center", position_y="bottom"
+            show_temporary_message(
+                parent=self, text=f"Copiado: {item_id}", bg_color="#222222", text_color="#FFFFFF", duration=2000, position_x="center", position_y="bottom"
             )
-
-    def show_temporary_message(self, text, bg_color="#222", text_color="#fff", duration=2000, position_x="center", position_y="top"):
-        """
-        Muestra un QLabel flotante y transparente sobre esta ventana,
-        que se oculta automáticamente tras 'duration' ms.
-
-        :param text: Texto a mostrar
-        :param bg_color: color de fondo (hex)
-        :param text_color: color de letra (hex)
-        :param duration: tiempo en ms
-        :param position_x: "center", "left", "right"
-        :param position_y: "top", "bottom"
-        """
-        msg_label = QLabel(self)
-        msg_label.setText(text)
-        msg_label.setStyleSheet(
-            f"""
-            QLabel {{
-                background-color: {bg_color};
-                color: {text_color};
-                padding: 6px 10px;
-                border-radius: 4px;
-            }}
-        """
-        )
-        msg_label.adjustSize()
-
-        # Calculamos posición
-        parent_rect = self.rect()  # geom local
-        label_w = msg_label.width()
-        label_h = msg_label.height()
-
-        # Eje X
-        if position_x == "center":
-            x = (parent_rect.width() - label_w) // 2
-        elif position_x == "right":
-            x = parent_rect.width() - label_w - 10
-        else:
-            # "left" por defecto
-            x = 10
-
-        # Eje Y
-        if position_y == "bottom":
-            y = parent_rect.height() - label_h - 10
-        else:
-            # "top" por defecto
-            y = 10
-
-        msg_label.move(x, y)
-        msg_label.show()
-
-        # Timer para autodestruir
-        def _remove_label():
-            msg_label.deleteLater()
-
-        timer = QTimer(self)
-        timer.setSingleShot(True)
-        timer.setInterval(duration)
-        timer.timeout.connect(_remove_label)
-        timer.start()
 
     # ------------------------------------------------------------------------
     # Manejo de descarga de imágenes (similar a ImageCarousel)
@@ -633,6 +616,9 @@ class ItemRelationshipsWindow(QWidget):
         # Ahora interpretamos ZOOM_REGION como tamaño en la miniatura
         region_size_thumb = self.ZOOM_REGION
 
+        min_w = min(region_size_thumb, scaled_w)
+        min_h = min(region_size_thumb, scaled_h)
+
         # Queremos centrar la región en (x_in_scaled, y_in_scaled)
         left_thumb = x_in_scaled - region_size_thumb / 2
         top_thumb = y_in_scaled - region_size_thumb / 2
@@ -643,9 +629,9 @@ class ItemRelationshipsWindow(QWidget):
         if top_thumb < 0:
             top_thumb = 0
         if left_thumb + region_size_thumb > scaled_w:
-            left_thumb = scaled_w - region_size_thumb
+            left_thumb = scaled_w - min_w
         if top_thumb + region_size_thumb > scaled_h:
-            top_thumb = scaled_h - region_size_thumb
+            top_thumb = scaled_h - min_h
 
         # Dibujar rectángulo + cuadrícula en la miniatura
         if not hasattr(label, "_original_pixmap"):
@@ -659,7 +645,7 @@ class ItemRelationshipsWindow(QWidget):
         pen_rect = QPen(QColor(0, 0, 255, 128))  # Azul semitransparente
         pen_rect.setWidth(1)
         painter.setPen(pen_rect)
-        painter.drawRect(QRectF(left_thumb, top_thumb, region_size_thumb, region_size_thumb))
+        painter.drawRect(QRectF(left_thumb, top_thumb, min_w, min_h))
 
         # -- Cuadrícula de puntos azules más claros --
         pen_grid = QPen(QColor(0, 0, 255, 60))  # Azul más claro
@@ -667,8 +653,8 @@ class ItemRelationshipsWindow(QWidget):
         painter.setPen(pen_grid)
 
         grid_size = 2
-        for gx in range(int(left_thumb), int(left_thumb + region_size_thumb), grid_size):
-            for gy in range(int(top_thumb), int(top_thumb + region_size_thumb), grid_size):
+        for gx in range(int(left_thumb), int(left_thumb + min_w), grid_size):
+            for gy in range(int(top_thumb), int(top_thumb + min_h), grid_size):
                 painter.drawPoint(gx, gy)
 
         painter.end()

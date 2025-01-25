@@ -1,8 +1,6 @@
-import pytest
 from PyQt5.QtTest import QTest
-from PyQt5.QtWidgets import QApplication
 
-from ui.custom_widgets import ImageCarousel
+from custom_widgets.image_carousel import ImageCarousel
 
 
 def test_two_failures(qtbot):

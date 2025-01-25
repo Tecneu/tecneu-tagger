@@ -1,10 +1,8 @@
-import os
-
 import requests
 from PyQt5.QtCore import QSettings
 from requests.exceptions import RequestException, Timeout
 
-from config import API_BASE_URL, API_EMAIL, API_PASSWORD, BASE_ENV_PATH
+from config import API_BASE_URL, API_EMAIL, API_PASSWORD
 
 
 class HTTPInterceptor:

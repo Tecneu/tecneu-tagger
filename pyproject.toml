@@ -48,7 +48,7 @@ skip = ["venv", ".venv"]
 max-line-length = 160
 # Ignorar códigos conflictivos con Black
 ignore = ["E203", "W503"]
-exclude = [".git", "__pycache__", ".venv", "build", "dist"]
+exclude = [".git", "__pycache__", ".venv", "build", "dist", "__init__.py"]
 
 ####################################
 # MYPY
