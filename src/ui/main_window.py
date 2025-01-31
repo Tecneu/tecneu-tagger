@@ -25,6 +25,7 @@ from PyQt5.QtWidgets import (
     QSpacerItem,
     QVBoxLayout,
     QWidget,
+    QTableWidget,
 )
 
 from api.endpoints import APIEndpoints
@@ -98,6 +99,7 @@ class MainWindow(QWidget):
         self.slider_label_timer.setSingleShot(True)
         self.updating_copies = False  # Flag para controlar la recursión entre métodos
         self.updating_zpl = False  # Flag para controlar la recursión entre métodos
+        self.updating_zpl_by_api = False  # Flag para controlar la recursión entre metodo
         self.init_ui()
         self.loadSettings()
         self.connect_buttons()
@@ -875,6 +877,15 @@ class MainWindow(QWidget):
 
         self.updating_copies = True
 
+        zpl_text = self.zpl_textedit.toPlainText().strip()
+
+        if self.print_thread:
+            self.print_thread.set_zpl(zpl_text)
+
+        if self.updating_zpl_by_api:
+            self.updating_zpl_by_api = False
+            return
+
         # 1) Detectar si este cambio viene de handle_search_result
         if self.updating_zpl_from_result:
             # a) Desactivamos el flag
@@ -884,7 +895,6 @@ class MainWindow(QWidget):
                 item = self.latest_item_data
 
                 # c) Parseamos el ZPL para actualizar copias, preview, etc. (opcional)
-                zpl_text = self.zpl_textedit.toPlainText().strip()
                 self.parse_zpl_and_update_ui(zpl_text)
 
                 # d) Usamos el 'item' para, por ejemplo, mostrar imágenes, etc.
@@ -894,8 +904,6 @@ class MainWindow(QWidget):
             return
 
         # 2) Caso normal: el texto lo cambió el usuario
-        zpl_text = self.zpl_textedit.toPlainText().strip()
-
         #    Validamos y, si es válido, o si necesitamos más datos del API,
         #    podemos llamar a otro Worker. Aquí lo encapsulamos en un método aparte:
         self.process_zpl_text_and_call_api_if_needed(zpl_text)
@@ -946,6 +954,9 @@ class MainWindow(QWidget):
         Maneja la información del 'item' obtenido. Por ejemplo,
         mostrar imágenes en un carrusel, actualizar la UI, etc.
         """
+        if not item:
+            return
+
         if "pictures" in item:
             image_urls = [picture["url"] for picture in item.get("pictures", [])]
             if image_urls:
@@ -959,6 +970,12 @@ class MainWindow(QWidget):
                     countdown=True,
                     color="#BD2A2E",
                 )
+
+        # Actualiza ZPL del TextEdit
+        if "label" in item:
+            self.updating_zpl_by_api = True
+            self.zpl_textedit.setText(item["label"])
+
         # Extraemos 'tecneu_item_relationships'
         # Si hay relationships
         relationships = item.get("tecneu_item_relationships", [])
@@ -1143,7 +1160,8 @@ class MainWindow(QWidget):
     def on_label_size_changed(self, index):
         zpl_text = self.zpl_textedit.toPlainText().strip().strip('"')
         inventory_id = self.extract_barcode(zpl_text)
-        self.execute_search(inventory_id)
+        if inventory_id:
+            self.execute_search(inventory_id)
 
     def clear_focus(self):
         """
@@ -1177,15 +1195,21 @@ class MainWindow(QWidget):
         """
         focused_widget = QApplication.focusWidget()  # Obtener el widget actualmente enfocado
 
-        # Si el foco está en un QTextEdit, ignorar todas las teclas
-        if isinstance(focused_widget, QTextEdit):
-            return False  # No procesar el atajo, permitir edición normal
-
         key = event.key()
+
+        # Si el foco está en un QTextEdit, permitir solo teclas de flecha de teclado
+        if isinstance(focused_widget, QTextEdit):
+            if key in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right, Qt.Key_Delete):
+                return False  # No procesar el atajo, permitir edición normal
 
         # Si el foco está en un QLineEdit, permitir solo teclas Up y Down
         if isinstance(focused_widget, QLineEdit):
-            if key in (Qt.Key_Left, Qt.Key_Right):
+            if key in (Qt.Key_Left, Qt.Key_Right, Qt.Key_Delete):
+                return False  # Permitir el uso normal
+
+        # Si el foco está en un QTableWidget, permitir solo teclas de flecha de teclado
+        if isinstance(focused_widget, QTableWidget):
+            if key in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right):
                 return False  # Permitir el uso normal
 
         # Procesamiento normal de atajos

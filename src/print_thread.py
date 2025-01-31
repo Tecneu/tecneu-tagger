@@ -101,6 +101,7 @@ class PrintThread(QThread):
         try:
             self.z.output(zpl_to_print)
             print("Impresión realizada")
+            print(zpl_to_print)
         except Exception as e:
             self.error_signal.emit(f"Error al imprimir{': ' if str(e) else ''}{e}.")
 
@@ -137,8 +138,15 @@ class PrintThread(QThread):
     def set_copies_and_zpl(self, copies, zpl):
         with self.lock:
             self.copies = copies
+            print("set_copies_and_zpl")
+            print(zpl)
             self.zpl = zpl
             self.pause = False  # Reinicia la pausa para asegurar que no esté pausada al cambiar de trabajo
+
+    def set_zpl(self, zpl):
+        with self.lock:
+            self.zpl = zpl
+            # self.pause = False  # Reinicia la pausa para asegurar que no esté pausada al cambiar de trabajo
 
     def wait_with_delay(self):
         """
