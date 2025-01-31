@@ -1,4 +1,5 @@
-from PyQt5.QtCore import QObject, QEvent, Qt
+from PyQt5.QtCore import QEvent, QObject, Qt
+
 
 class GlobalKeyEventFilter(QObject):
     """
@@ -6,6 +7,7 @@ class GlobalKeyEventFilter(QObject):
     Cuando detecta una tecla, llama a un método en la MainWindow
     para que maneje la lógica.
     """
+
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window

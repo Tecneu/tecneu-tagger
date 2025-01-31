@@ -10,22 +10,22 @@ from PyQt5.QtGui import QColor, QIcon, QKeySequence, QMovie, QPixmap, QStandardI
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import (
     QApplication,
-    QLineEdit,
-    QTextEdit,
     QComboBox,
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QShortcut,
     QSizePolicy,
     QSlider,
     QSpacerItem,
+    QTableWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
-    QTableWidget,
 )
 
 from api.endpoints import APIEndpoints
@@ -33,14 +33,13 @@ from config import BASE_ASSETS_PATH, LABEL_SIZES, MAX_DELAY
 from custom_widgets import ImageCarousel
 from font_config import FontManager
 from print_thread import PrintThread
-from utils import list_printers_to_json, show_message_overlay
+from utils import GlobalKeyEventFilter, OverlayMessage, list_printers_to_json, show_message_overlay
 from workers.search_by_zpl_worker import ZplWorker
 from workers.search_worker import SearchWorker
 
 from .custom_widgets import CustomComboBox, CustomSearchBar, CustomTextEdit, SpinBoxWidget, ToggleSwitch, TransparentOverlayFrame
 from .item_relationships_window import ItemRelationshipsWindow
 from .zpl_preview import LabelViewer
-from utils import OverlayMessage, GlobalKeyEventFilter
 
 user32 = ctypes.windll.user32
 
@@ -89,7 +88,9 @@ class MainWindow(QWidget):
         self.overlay_message = OverlayMessage(parent=self)
 
         self.updating_zpl_from_result = False
+        self.is_programmatic_zpl_change = False  # Variable de control para cambios programáticos
         self.latest_item_data = None
+        self.last_inventory_id = None
 
         self.print_thread = None
         self.selected_printer_name = None  # Inicializa la variable para almacenar el nombre de la impresora seleccionada
@@ -522,7 +523,7 @@ class MainWindow(QWidget):
 
         self.zpl_textedit = CustomTextEdit()
         self.zpl_textedit.setPlaceholderText("Ingrese el ZPL aquí...")
-        self.zpl_textedit.textChanged.connect(self.validate_and_update_copies_from_zpl)
+        self.zpl_textedit.textChangedDelayed.connect(self.validate_and_update_copies_from_zpl)
         self.zpl_textedit.textPasted.connect(lambda: self.search_bar.setText(""))  # Conectar la señal al método adecuado
         zpl_layout.addWidget(self.zpl_textedit)
 
@@ -663,7 +664,7 @@ class MainWindow(QWidget):
         if include_search_bar:
             self.search_bar.clear()
 
-    def execute_search(self, custom_search_text=None):
+    def execute_search(self, custom_search_text=None, copies_str="0"):
         """Executes a search using the text from the search bar."""
         search_text = custom_search_text or self.search_bar.text().strip()
         if not search_text and not custom_search_text:
@@ -676,14 +677,12 @@ class MainWindow(QWidget):
             return
 
         self.copies_entry.setValue("0")
-        # copies_str = self.copies_entry.text()
 
         index = self.label_size_selector.currentIndex()
         label_size = self.label_size_selector.itemData(index, Qt.UserRole)
         query_params = {
             "label_size": label_size,
-            # "qty": copies_str if copies_str.isdigit() else "0",
-            "qty": "0",
+            "qty": copies_str,
         }
 
         self.reset_all(False)
@@ -899,6 +898,7 @@ class MainWindow(QWidget):
 
                 # d) Usamos el 'item' para, por ejemplo, mostrar imágenes, etc.
                 self.use_item_data(item)
+            self.last_inventory_id = self.extract_barcode(zpl_text)
             self.latest_item_data = None
             self.updating_copies = False
             return
@@ -907,6 +907,8 @@ class MainWindow(QWidget):
         #    Validamos y, si es válido, o si necesitamos más datos del API,
         #    podemos llamar a otro Worker. Aquí lo encapsulamos en un método aparte:
         self.process_zpl_text_and_call_api_if_needed(zpl_text)
+
+        self.last_inventory_id = self.extract_barcode(zpl_text)
 
         self.updating_copies = False
 
@@ -946,7 +948,6 @@ class MainWindow(QWidget):
 
             # Ajusta el ZPL para previsualizar con 1 copia
             new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
-            print("ACTUALIZA PREVIEW LABEL=> parse_zpl_and_update_ui")
             self.labelViewer.preview_label(new_zpl_text)
 
     def use_item_data(self, item):
@@ -1026,6 +1027,7 @@ class MainWindow(QWidget):
             self.updating_copies = False
             return
 
+        inventory_id = self.extract_barcode(zpl_text)
         # En este punto, el ZPL es válido. Extraemos ^PQ y el barcode
         pq_index = zpl_text.find("^PQ")
         if pq_index != -1:
@@ -1043,10 +1045,11 @@ class MainWindow(QWidget):
             # Ajusta el ZPL para previsualizar con 1 copia
             new_zpl_text = zpl_text[:start_index] + "1,0,1,Y^XZ"
 
-            # print(f"BARCODE ========== {self.extract_barcode(zpl_text)}")
-            # Obtener informacion del item
-            inventory_id = self.extract_barcode(zpl_text)
-            # print(f"COPIES_STR: {copies_str if copies_str.isdigit() else '0'}")
+            if self.last_inventory_id and inventory_id == self.last_inventory_id:
+                self.labelViewer.preview_label(zpl_text)
+                # Liberamos el flag
+                self.updating_copies = False
+                return
 
             index = self.label_size_selector.currentIndex()
             label_size = self.label_size_selector.itemData(index, Qt.UserRole)
@@ -1069,6 +1072,8 @@ class MainWindow(QWidget):
 
             # Ejecuta en el pool de hilos
             self.threadpool.start(worker)
+
+        self.last_inventory_id = inventory_id
 
     def handle_zpl_worker_result(self, item, new_zpl_text):
         """Se llama cuando el ZplWorker termina."""
@@ -1161,7 +1166,8 @@ class MainWindow(QWidget):
         zpl_text = self.zpl_textedit.toPlainText().strip().strip('"')
         inventory_id = self.extract_barcode(zpl_text)
         if inventory_id:
-            self.execute_search(inventory_id)
+            copies_str = self.copies_entry.text()
+            self.execute_search(inventory_id, copies_str)
 
     def clear_focus(self):
         """
@@ -1199,12 +1205,12 @@ class MainWindow(QWidget):
 
         # Si el foco está en un QTextEdit, permitir solo teclas de flecha de teclado
         if isinstance(focused_widget, QTextEdit):
-            if key in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right, Qt.Key_Delete):
+            if key in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right, Qt.Key_Delete, Qt.Key_Space):
                 return False  # No procesar el atajo, permitir edición normal
 
         # Si el foco está en un QLineEdit, permitir solo teclas Up y Down
         if isinstance(focused_widget, QLineEdit):
-            if key in (Qt.Key_Left, Qt.Key_Right, Qt.Key_Delete):
+            if key in (Qt.Key_Left, Qt.Key_Right, Qt.Key_Delete, Qt.Key_Space):
                 return False  # Permitir el uso normal
 
         # Si el foco está en un QTableWidget, permitir solo teclas de flecha de teclado

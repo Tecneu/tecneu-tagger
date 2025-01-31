@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, QRect, Qt, pyqtProperty, pyqtSignal
+from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, QRect, Qt, pyqtProperty, pyqtSignal, QTimer
 from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QKeySequence, QPainter, QTextDocument
 from PyQt5.QtWidgets import QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QTableWidget, QTextEdit, QWidget
 
@@ -11,16 +11,67 @@ QApplication.processEvents()
 
 
 class CustomTextEdit(QTextEdit):
-    textPasted = pyqtSignal()  # Señal que no lleva datos
+    textChangedDelayed = pyqtSignal()  # Nueva señal que se emite después del retraso
+    textPasted = pyqtSignal()  # Señal cuando se pega texto manualmente
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.is_programmatic_change = False  # Bandera para distinguir cambios programáticos vs manuales
+
+        # Timer para retrasar la validación solo en cambios manuales
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(600)  # 600ms de retraso
+        self.update_timer.setSingleShot(True)  # Se ejecuta solo una vez
+        self.update_timer.timeout.connect(self.emit_text_changed_delayed)
+
+        # Conectar textChanged al método interno
+        self.textChanged.connect(self.handle_text_changed)
 
     def insertFromMimeData(self, source):
         if source.hasText():
-            text = source.text()
-            # Elimina espacios en blanco y comillas dobles al principio y al final
-            text = text.strip().strip('"')
-            (super(CustomTextEdit, self).setText(text))  # Reemplaza el texto completo del TextEdit
-            # (super(CustomTextEdit, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+            text = source.text().strip().strip('"')  # Eliminar espacios y comillas
+            self.setText(text)  # Usar `setText` que ya maneja la bandera correctamente
             self.textPasted.emit()  # Emitir la señal cuando se pega el texto
+
+    def handle_text_changed(self):
+        """
+        Decide si el cambio debe ejecutarse con retraso (manual) o inmediato (por código).
+        """
+        if self.is_programmatic_change:
+            return  # No hacer nada, el cambio se maneja directamente en `setText`
+        else:
+            self.update_timer.start()  # Iniciar temporizador para cambios manuales
+
+    def emit_text_changed_delayed(self):
+        """
+        Emitir la señal `textChangedDelayed` después del retraso.
+        """
+        self.textChangedDelayed.emit()  # Emite la nueva señal con retraso
+
+    def setText(self, text):
+        """
+        Establece el texto en el QTextEdit sin retraso y sin disparar `textChangedDelayed`.
+        """
+        self.is_programmatic_change = True  # Indica que el cambio es por código
+        self.blockSignals(True)  # Bloquear señales para evitar que `textChanged` se dispare
+        super().setText(text)
+        self.blockSignals(False)  # Reactivar señales
+        self.is_programmatic_change = False  # Restablecer la bandera
+
+        self.textChangedDelayed.emit()  # Ejecutar actualización inmediatamente
+
+    def setPlainText(self, text):
+        """
+        Establece el texto en el QTextEdit sin retraso y sin disparar `textChangedDelayed`.
+        """
+        self.is_programmatic_change = True  # Indica que el cambio es por código
+        self.blockSignals(True)  # Bloquear señales para evitar que `textChanged` se dispare
+        super().setPlainText(text)
+        self.blockSignals(False)  # Reactivar señales
+        self.is_programmatic_change = False  # Restablecer la bandera
+
+        self.textChangedDelayed.emit()  # Ejecutar actualización inmediatamente
 
 
 class PasteEventFilter(QObject):
@@ -369,11 +420,13 @@ class CustomTableWidget(QTableWidget):
         # Establecer el texto en el portapapeles
         QApplication.clipboard().setText(copied_text)
 
+
 class TransparentOverlayFrame(QFrame):
     """
     Un QFrame personalizado que pinta un color semitransparente en su paintEvent,
     en lugar de usar styleSheet para el fondo (que a veces ignora alpha).
     """
+
     def __init__(self, bg_color, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Guardamos el color en formato string y creamos un QColor con alpha
@@ -393,18 +446,19 @@ class TransparentOverlayFrame(QFrame):
         Maneja algunos casos básicos. Si algo falla, retorna QColor negro sin alpha.
         """
         # 1) Si empieza con '#', interpretamos como hex RGBA => #RRGGBBAA
-        if color_str.startswith('#'):
+        if color_str.startswith("#"):
             # asume que color_str = "#RRGGBBAA" (8 hex)
             if len(color_str) == 9:  # # + 8 hex => #AARRGGBB o #RRGGBBAA
                 return QColor(color_str)
             # fallback
             return QColor(color_str)  # Qt intentará parsearlo
         # 2) Si es tipo "rgba(r, g, b, a)"
-        elif color_str.lower().startswith('rgba'):
+        elif color_str.lower().startswith("rgba"):
             # Ejemplo: rgba(0, 0, 128, 0.4)
             # Intentamos extraer los 4 valores
             import re
-            pattern = r'rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)'
+
+            pattern = r"rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)"
             m = re.match(pattern, color_str.strip(), re.IGNORECASE)
             if m:
                 r = int(m.group(1))

@@ -1,15 +1,15 @@
 def show_message_overlay(
-        self,
-        message,
-        center_all_windows=False,
-        parent=None,
-        bg_color="rgba(0, 0, 0, 125)",
-        text_color="#FFFFFF",
-        font_size=24,
-        width=400,
-        height=200,
-        duration=3000,
-        is_html=False
+    self,
+    message,
+    center_all_windows=False,
+    parent=None,
+    bg_color="rgba(0, 0, 0, 125)",
+    text_color="#FFFFFF",
+    font_size=24,
+    width=400,
+    height=200,
+    duration=3000,
+    is_html=False,
 ):
     """
     Muestra un recuadro de 'width x height' con fondo 'bg_color' y un texto grande centrado.
@@ -32,8 +32,8 @@ def show_message_overlay(
     """
 
     # 1) Calcular el rectángulo donde vamos a centrar
-    from PyQt5.QtCore import QTimer, QRect
-    from PyQt5.QtWidgets import QFrame, QVBoxLayout, QLabel
+    from PyQt5.QtCore import QRect, QTimer
+    from PyQt5.QtWidgets import QFrame, QLabel, QVBoxLayout
 
     if center_all_windows:
         # Tomamos la geometría de la ventana principal
@@ -61,11 +61,8 @@ def show_message_overlay(
 
     # 3) Ajustar flags: sin bordes, encima de todo
     from PyQt5.QtCore import Qt
-    overlay_frame.setWindowFlags(
-        Qt.FramelessWindowHint |
-        Qt.WindowStaysOnTopHint |
-        Qt.Tool  # para que no aparezca en la barra de tareas
-    )
+
+    overlay_frame.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)  # para que no aparezca en la barra de tareas
 
     # 4) Ajustar tamaño
     overlay_frame.setFixedSize(width, height)
@@ -92,9 +89,7 @@ def show_message_overlay(
     else:
         # Texto plano: definimos color y tamaño con QSS
         label.setText(message)
-        label.setStyleSheet(
-            f"background-color: transparent; color: {text_color}; font-size: {font_size}pt;"
-        )
+        label.setStyleSheet(f"background-color: transparent; color: {text_color}; font-size: {font_size}pt;")
 
     layout.addWidget(label, alignment=Qt.AlignCenter)
 
@@ -104,7 +99,9 @@ def show_message_overlay(
 
     # 8) Si duration > 0 => ocultarlo automáticamente
     if duration > 0:
+
         def _close_overlay():
             if overlay_frame is not None:
                 overlay_frame.close()
+
         QTimer.singleShot(duration, _close_overlay)

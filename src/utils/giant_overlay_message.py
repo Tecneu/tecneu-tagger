@@ -1,7 +1,9 @@
-from PyQt5.QtCore import Qt, QTimer, QRect, QPoint, QEvent
-from PyQt5.QtGui import QPainter, QColor
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PyQt5.QtCore import QEvent, QPoint, QRect, Qt, QTimer
+from PyQt5.QtGui import QColor, QPainter
+from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
+
 from font_config import FontManager
+
 
 class OverlayMessage(QWidget):
     """
@@ -54,15 +56,7 @@ class OverlayMessage(QWidget):
 
         self.hide()  # Inicia oculto
 
-    def show_message(self,
-                     message,
-                     bg_color="rgba(0,0,0,0.5)",
-                     text_color="#FFFFFF",
-                     font_size=24,
-                     width=400,
-                     height=200,
-                     duration=3000,
-                     is_html=False):
+    def show_message(self, message, bg_color="rgba(0,0,0,0.5)", text_color="#FFFFFF", font_size=24, width=400, height=200, duration=3000, is_html=False):
         """
         Muestra un rectángulo semitransparente (width x height) centrado en el parent,
         con un texto. Se cierra automáticamente tras 'duration' ms (si > 0).
@@ -149,10 +143,11 @@ class OverlayMessage(QWidget):
         Convierte un string 'rgba(r,g,b,a)' (a en [0..1]) o '#RRGGBBAA' a QColor con alpha.
         """
         import re
-        if color_str.startswith('#'):
+
+        if color_str.startswith("#"):
             return QColor(color_str)
 
-        pattern = r'rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)'
+        pattern = r"rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d\.]+)\s*\)"
         m = re.match(pattern, color_str.strip(), re.IGNORECASE)
         if m:
             r = int(m.group(1))

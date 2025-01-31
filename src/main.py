@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import QApplication
 from config import BASE_ASSETS_PATH
 from font_config import FontManager
 from ui.main_window import MainWindow
-
 from utils import GlobalKeyEventFilter
 
 if __name__ == "__main__":
