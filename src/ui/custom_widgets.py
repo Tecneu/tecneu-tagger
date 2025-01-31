@@ -18,7 +18,8 @@ class CustomTextEdit(QTextEdit):
             text = source.text()
             # Elimina espacios en blanco y comillas dobles al principio y al final
             text = text.strip().strip('"')
-            (super(CustomTextEdit, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
+            (super(CustomTextEdit, self).setText(text))  # Reemplaza el texto completo del TextEdit
+            # (super(CustomTextEdit, self).insertPlainText(text))  # Usa insertPlainText para evitar la inserción de texto formateado
             self.textPasted.emit()  # Emitir la señal cuando se pega el texto
 
 

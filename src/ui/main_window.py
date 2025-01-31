@@ -10,6 +10,8 @@ from PyQt5.QtGui import QColor, QIcon, QKeySequence, QMovie, QPixmap, QStandardI
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import (
     QApplication,
+    QLineEdit,
+    QTextEdit,
     QComboBox,
     QFrame,
     QGraphicsDropShadowEffect,
@@ -966,7 +968,7 @@ class MainWindow(QWidget):
             total_qty = sum(rel.get("quantity", 0) for rel in relationships)
             self.overlay_message.show_message(
                 message=f"<b style='font-size:56pt'>{total_qty}</b> {'Unidad' if total_qty == 1 else 'Unidades'}"
-                        f"{f"<br><b style='font-size:36pt'>{num_relations}</b> {'Producto' if num_relations == 1 else 'Productos'}" if total_qty > 1 else ""}",
+                f"{f"<br><b style='font-size:36pt'>{num_relations}</b> {'Producto' if num_relations == 1 else 'Productos'}" if total_qty > 1 else ""}",
                 width=400,
                 height=200,
                 duration=4000,  # se oculta tras 4s
@@ -1161,7 +1163,6 @@ class MainWindow(QWidget):
         # if self.relationships_window and self.relationships_window.is_visible:
         #     self.relationships_window.clear_focus_in_table()
 
-
     def mousePressEvent(self, event):
         """
         Quita el foco de cualquier widget cuando se hace clic fuera de ellos en la ventana.
@@ -1172,9 +1173,22 @@ class MainWindow(QWidget):
     def handle_global_key_press(self, event):
         """
         Maneja eventos de teclado para quitar el foco y otros controles.
+        Solo se activarán los atajos si el foco no está en un QTextEdit o en un QLineEdit (con excepción de Up/Down).
         """
+        focused_widget = QApplication.focusWidget()  # Obtener el widget actualmente enfocado
+
+        # Si el foco está en un QTextEdit, ignorar todas las teclas
+        if isinstance(focused_widget, QTextEdit):
+            return False  # No procesar el atajo, permitir edición normal
+
         key = event.key()
 
+        # Si el foco está en un QLineEdit, permitir solo teclas Up y Down
+        if isinstance(focused_widget, QLineEdit):
+            if key in (Qt.Key_Left, Qt.Key_Right):
+                return False  # Permitir el uso normal
+
+        # Procesamiento normal de atajos
         if key == Qt.Key_Left:
             # Disminuir el valor del slider
             current_value = self.delay_slider.value()
