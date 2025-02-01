@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QAbstractItemView, QApplication, QHBoxLayout, QHeade
 
 from config import BASE_ASSETS_PATH
 from custom_widgets.hover_zoom_window import HoverZoomWindow
-from utils import show_message_overlay, show_temporary_message
+from utils import show_temporary_message
 
 from .custom_widgets import CustomTableWidget
 
@@ -296,7 +296,7 @@ class ItemRelationshipsWindow(QWidget):
         Muestra las relaciones en la tabla:
          - Col 0 → "Cant."
          - Col 1 → "Imagen"
-         - Col 2 ⇾ "Título"
+         - Col 2 ⇾ "Título" + Bins
          - Col 3 ⇾ "Variante" (solo si alguna relación tiene variations)
         También actualiza el label superior con la cuenta de relaciones y la suma de cantidades.
         """
@@ -403,10 +403,42 @@ class ItemRelationshipsWindow(QWidget):
                 if image_url:
                     self.download_image(image_url, label, spinner)
 
-            # 3) Col 2 => Título
-            title_item = QTableWidgetItem(title)
-            title_item.setFlags(title_item.flags() & ~Qt.ItemIsEditable)
-            self.table.setItem(row_idx, 2, title_item)
+            # 3) Col 2 => Título + Bins
+            title_label = QLabel()
+            title_label.setWordWrap(True)
+            title_label.setTextFormat(Qt.RichText)
+            title_label.setStyleSheet("background-color: transparent; color: white;")
+            title_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+
+            # Extraer los bins (contenedores)
+            warehouse_bins = tecneu_item.get("tecneu_warehouse_bins", [])
+            bins_list = []
+            for b in warehouse_bins:
+                formatted_bin = b.get("formatted_bin", "")
+                if formatted_bin:
+                    bins_list.append(str(formatted_bin))
+
+            # Si existen bins, se construye el texto combinando título y bins;
+            # se utiliza la función _format_bins_text para limitar la visualización a dos renglones.
+            if bins_list:
+                cell_width = self.table.columnWidth(2)
+                print(f"cell_width ====> {cell_width}")
+                if cell_width <= 0:
+                    cell_width = 200  # valor por defecto si no se ha asignado ancho
+                fm = title_label.fontMetrics()
+                max_height = fm.lineSpacing() * 8  # permitimos 8 bins maximo
+                truncated_bins = self._format_bins_text(bins_list, cell_width, fm, max_height)
+                cell_text = (
+                    f"<div>"
+                    f"  <div style='font-size:14pt; font-weight:bold;'>{title}</div>"
+                    f"  <div style='font-size:10pt; color: #BFBFBF'>{truncated_bins}</div>"
+                    f"</div>"
+                )
+            else:
+                cell_text = f"<div style='font-size:14pt; font-weight:bold;'>{title}</div>"
+
+            title_label.setText(cell_text)
+            self.table.setCellWidget(row_idx, 2, title_label)
 
             # 4) Col 3 => Variante (sólo si self._has_variant)
             if self._has_variant:
@@ -433,6 +465,31 @@ class ItemRelationshipsWindow(QWidget):
                 self.table.setRowHeight(i, 70)
             elif row_height > 90:
                 self.table.setRowHeight(i, 90)
+
+    # ------------------------------------------------------------------------
+    # Función auxiliar para formatear (y truncar) el texto de los bins.
+    # Se muestra la lista de bins separados por comas; si la cadena completa
+    # excede el alto permitido (dos líneas), se van agregando uno a uno y,
+    # al exceder el límite, se agrega "..." al final.
+    # ------------------------------------------------------------------------
+    def _format_bins_text(self, bins_list, cell_width, fm, max_height):
+        full_text = ", ".join(bins_list)
+        rect = fm.boundingRect(0, 0, cell_width, 10000, Qt.TextWordWrap, full_text)
+        if rect.height() <= max_height:
+            return full_text
+        current_bins = []
+        for b in bins_list:
+            candidate = ", ".join(current_bins + [b])
+            candidate_with_ellipsis = candidate + "..."
+            rect_candidate = fm.boundingRect(0, 0, cell_width, 10000, Qt.TextWordWrap, candidate_with_ellipsis)
+            if rect_candidate.height() <= max_height:
+                current_bins.append(b)
+            else:
+                break
+        truncated = ", ".join(current_bins)
+        if len(current_bins) < len(bins_list):
+            truncated += "..."
+        return truncated
 
     def clear_relationships(self):
         """Limpia la tabla y pixmaps."""

@@ -113,3 +113,13 @@ El proyecto define algunos **scripts** en él `Pipfile` para simplificar tareas 
 
 > **Nota**: En Windows, los scripts usan `cmd /c "..."` para poder encadenar comandos con `&&`.
 > En caso de que tengas problemas con `&&` en **PowerShell**, podrías separar cada herramienta en distintos scripts (por ejemplo, `format_black` y `format_isort`) o usar un archivo `.bat`.
+
+
+## Producción (Crear instalable):
+
+1. **Crear ejecutable**
+   - Crear ejecutable que se necesita para crear el instalador `pyinstaller main.spec`, esto debera crear un ejecutable .exe que terminara en el directorio `/dist/main.exe`.
+
+2. **Crear instalador**
+   - Se requiere tener previamente instalado el software de Inno Setup Compiler.
+   - Con ese software debes de abrir el archivo `InnoSetup.iss` que se encuentra dentro de este proyecto.
