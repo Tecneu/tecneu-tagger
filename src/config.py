@@ -105,7 +105,7 @@ if getattr(sys, "frozen", False):
         temp_env_file.write(decrypted_content)
         temp_env_file.close()
         env_to_load = Path(temp_env_file.name)
-        logging.debug(f"Archivo .env desencriptado temporal: {env_to_load}")
+        # logging.debug(f"Archivo .env desencriptado temporal: {env_to_load}")
         load_dotenv(env_to_load)
     except Exception as e:
         logging.error(f"Error al desencriptar el archivo .env: {e}")
@@ -117,13 +117,13 @@ else:
     ENV_FILE = BASE_ENV_PATH / ".env.development"
     load_dotenv(ENV_FILE)
 
-logging.debug(f"BASE_ASSETS_PATH: {BASE_ASSETS_PATH}")
-logging.debug(f"ENV_FILE: {ENV_FILE}")
+# logging.debug(f"BASE_ASSETS_PATH: {BASE_ASSETS_PATH}")
+# logging.debug(f"ENV_FILE: {ENV_FILE}")
 
-if getattr(sys, "frozen", False):
-    logging.debug("Ambiente: Producción (encriptado)")
-else:
-    logging.debug("Ambiente: Desarrollo (sin encriptar)")
+# if getattr(sys, "frozen", False):
+#     logging.debug("Ambiente: Producción (encriptado)")
+# else:
+#     logging.debug("Ambiente: Desarrollo (sin encriptar)")
 
 # Ahora ya puedes leer variables de entorno en todo tu proyecto
 API_EMAIL = os.getenv("API_EMAIL", "")

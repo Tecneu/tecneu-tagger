@@ -18,8 +18,8 @@ class HTTPInterceptor:
         self.timeout = 2.5  # Timeout en segundos
 
         # Log de la configuración inicial
-        logging.debug(f"API Base URL: {self.base_url}")
-        logging.debug(f"API Email: {API_EMAIL}")
+        # logging.debug(f"API Base URL: {self.base_url}")
+        # logging.debug(f"API Email: {API_EMAIL}")
         print(f"API Base URL: {self.base_url}")
 
     def login(self):
@@ -36,7 +36,7 @@ class HTTPInterceptor:
                 self.access_token = response.json().get("access_token")
                 self.settings.setValue("access_token", self.access_token)  # Guardar el nuevo token en QSettings
                 print("Login exitoso. Nuevo token obtenido.")
-                logging.info(f"Login exitoso. Access_token: {self.access_token}")
+                # logging.info(f"Login exitoso. Access_token: {self.access_token}")
                 # print(self.access_token)
                 return True
             else:
@@ -78,7 +78,7 @@ class HTTPInterceptor:
                 if response.status_code == 401:
                     # Intentar renovar token una vez
                     if login_attempts < 1:
-                        logging.info("Token expirado. Intentando renovar.")
+                        # logging.info("Token expirado. Intentando renovar.")
                         print("Token expirado. Intentando renovar.")
                         if self.login():
                             login_attempts += 1
