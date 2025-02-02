@@ -2,8 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Tecneu Tagger"
-#define MyAppVersion "1.1"
-#define MyAppPublisher "Tecneu Technology, SAS de CV"
+#define MyAppVersion "1.2"
+#define MyAppPublisher "Tecneu Technology, SA de CV"
 #define MyAppURL "https://www.tecneu.com/"
 #define MyAppExeName "main.exe"
 
@@ -23,7 +23,8 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 OutputBaseFilename=TTaggerSetup
-SetupIconFile=C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets\logos\tecneu-logo.ico
+SetupIconFile=C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\assets\logos\tecneu-logo.ico
+; SetupIconFile=C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets\logos\tecneu-logo.ico
 Password=bI5alComo0Te
 Encryption=yes
 Compression=lzma
@@ -37,7 +38,9 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Source: "C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Source: "C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

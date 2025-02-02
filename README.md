@@ -118,8 +118,11 @@ El proyecto define algunos **scripts** en él `Pipfile` para simplificar tareas 
 ## Producción (Crear instalable):
 
 1. **Crear ejecutable**
-   - Crear ejecutable que se necesita para crear el instalador `pyinstaller main.spec`, esto debera crear un ejecutable .exe que terminara en el directorio `/dist/main.exe`.
+   - Asociar extension `*.spec` a Python (Opcional):
+     - En IntelliJ, ve a Settings > Editor > File Types. 
+     - Luego, en “Python” (o “Python File”), añade el patrón `*.spec`.
+   - Crear ejecutable que se necesita para crear el instalador `pyinstaller main.spec`, esto debera generar un ejecutable .exe que terminara en el directorio `/dist/main.exe`.
 
 2. **Crear instalador**
-   - Se requiere tener previamente instalado el software de Inno Setup Compiler.
+   - Se requiere tener previamente instalado el software [Inno Setup Compiler](https://jrsoftware.org/isdl.php).
    - Con ese software debes de abrir el archivo `InnoSetup.iss` que se encuentra dentro de este proyecto.
