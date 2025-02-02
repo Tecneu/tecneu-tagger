@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, QRect, Qt, pyqtProperty, pyqtSignal, QTimer
+from PyQt5.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, QRect, Qt, QTimer, pyqtProperty, pyqtSignal
 from PyQt5.QtGui import QBrush, QColor, QFont, QIntValidator, QKeySequence, QPainter, QTextDocument
 from PyQt5.QtWidgets import QApplication, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListView, QPushButton, QTableWidget, QTextEdit, QWidget
 

@@ -1,11 +1,18 @@
 # config.py
-import os
-import sys
-from pathlib import Path
-from dotenv import load_dotenv
-import logging
+import base64
 import ctypes
 import ctypes.wintypes
+import logging
+import os
+import sys
+import tempfile
+from pathlib import Path
+
+from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from dotenv import load_dotenv
 
 
 # --- Configuración de logging centralizada ---
@@ -53,6 +60,34 @@ if not logging.getLogger().hasHandlers():
 
 # --- Fin de la configuración de logging ---
 
+
+def generate_key(password: str, salt: bytes) -> bytes:
+    """
+    Deriva una clave de 32 bytes a partir de la contraseña y la sal usando PBKDF2HMAC.
+    """
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000, backend=default_backend())
+    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
+
+
+def decrypt_env_file(enc_path: str, password: str) -> str:
+    """
+    Desencripta el archivo encriptado que contiene el .env y devuelve su contenido como string.
+    Se asume que los primeros 16 bytes del archivo son la sal.
+    """
+    with open(enc_path, "rb") as f:
+        data = f.read()
+    salt = data[:16]
+    encrypted = data[16:]
+    key = generate_key(password, salt)
+    fernet = Fernet(key)
+    decrypted = fernet.decrypt(encrypted)
+    return decrypted.decode("utf-8")
+
+
+# Ejemplo: desencriptar el archivo .env.production.enc
+# Define la contraseña utilizada para encriptar.
+ENV_PASSWORD = "O6^A=G9mY0"
+
 # Valor máximo para el delay slider
 MAX_DELAY = 50
 
@@ -61,20 +96,34 @@ if getattr(sys, "frozen", False):
     # Si es así, usa la ruta de _MEIPASS
     BASE_ASSETS_PATH = Path(sys._MEIPASS) / "assets"
     BASE_ENV_PATH = Path(sys._MEIPASS) / "env"
-    env_file = ".env.production"
+    ENV_FILE = BASE_ENV_PATH / ".env.production.enc"
+
+    try:
+        decrypted_content = decrypt_env_file(str(ENV_FILE), ENV_PASSWORD)
+        # Escribir el contenido desencriptado en un archivo temporal.
+        temp_env_file = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".tmp")
+        temp_env_file.write(decrypted_content)
+        temp_env_file.close()
+        env_to_load = Path(temp_env_file.name)
+        logging.debug(f"Archivo .env desencriptado temporal: {env_to_load}")
+        load_dotenv(env_to_load)
+    except Exception as e:
+        logging.error(f"Error al desencriptar el archivo .env: {e}")
 else:
     # Estamos corriendo como script normal => desarrollo
     # De lo contrario, usa la ruta relativa desde el archivo de script
     BASE_ASSETS_PATH = Path(__file__).resolve().parent.parent / "assets"
     BASE_ENV_PATH = Path(__file__).resolve().parent.parent / "env"
-    env_file = ".env.development"
+    ENV_FILE = BASE_ENV_PATH / ".env.development"
+    load_dotenv(ENV_FILE)
 
 logging.debug(f"BASE_ASSETS_PATH: {BASE_ASSETS_PATH}")
-logging.debug(f"BASE_ENV_PATH: {BASE_ENV_PATH}")
-logging.debug(f"env_file: {env_file}")
+logging.debug(f"ENV_FILE: {ENV_FILE}")
 
-# Cargar el .env correspondiente
-load_dotenv(BASE_ENV_PATH / env_file)
+if getattr(sys, "frozen", False):
+    logging.debug("Ambiente: Producción (encriptado)")
+else:
+    logging.debug("Ambiente: Desarrollo (sin encriptar)")
 
 # Ahora ya puedes leer variables de entorno en todo tu proyecto
 API_EMAIL = os.getenv("API_EMAIL", "")

@@ -1,8 +1,41 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+import sys
 
 from PyInstaller.building.api import PYZ, EXE
 from PyInstaller.building.build_main import Analysis
+
+from config import BASE_ENV_PATH
+
+# --- Paso de encriptación previo al Analysis ---
+
+# Define la contraseña a usar para la encriptación/desencriptación
+ENV_PASSWORD = "O6^A=G9mY0"
+
+# Directorio base: asume que el spec se encuentra en el directorio raíz del proyecto
+# base_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construir las rutas de entrada y salida para el archivo .env.production
+input_env_file = os.fspath(BASE_ENV_PATH / ".env.production")
+output_env_file = os.fspath(BASE_ENV_PATH / ".env.production.enc")
+
+# Si ya existe un archivo encriptado previo, lo eliminamos
+if os.path.exists(output_env_file):
+    os.remove(output_env_file)
+    print(f"El archivo encriptado previo '{output_env_file}' ha sido eliminado.")
+
+# Verificar que el archivo de entrada exista
+if not os.path.exists(input_env_file):
+    print(f"El archivo de entrada '{input_env_file}' no existe. Verifica que el archivo .env.production esté presente.")
+    sys.exit(1)
+
+# Importar la función de encriptación desde encrypt_env.py
+from encrypt_env import encrypt_file
+
+# Encriptar el archivo .env.production y generar .env.production.enc
+encrypt_file(input_env_file, output_env_file, ENV_PASSWORD)
+
+# --- Fin del paso de encriptación ---
 
 block_cipher = None
 
@@ -27,7 +60,7 @@ a = Analysis(
     pathex=['src'],
     binaries=[],
     # Se recopilan tanto los archivos de "assets" como los de "env"
-    datas=collect_data_files('assets', 'assets') + collect_data_files('env', 'env'),
+    datas=collect_data_files('assets', 'assets') + [('env/.env.production.enc', 'env')],
     hiddenimports=['src.utils', 'src.config'],
     hookspath=['./hooks'],
     hooksconfig={},
