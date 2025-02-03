@@ -2,6 +2,9 @@
 import os
 import sys
 
+# Agrega la carpeta 'src' al sys.path
+sys.path.insert(0, os.path.abspath('src'))
+
 from PyInstaller.building.api import PYZ, EXE
 from PyInstaller.building.build_main import Analysis
 

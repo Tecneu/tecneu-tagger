@@ -28,6 +28,8 @@ pywin32-ctypes = "*"
 requests = "*"
 urllib3 = "*"
 zebra = "==0.1.0"
+logging = "*"
+cryptography = "*"
 
 [dev-packages]
 black = "*"

@@ -23,8 +23,8 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 OutputBaseFilename=TTaggerSetup
-SetupIconFile=C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\assets\logos\tecneu-logo.ico
-; SetupIconFile=C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets\logos\tecneu-logo.ico
+; SetupIconFile=C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\assets\logos\tecneu-logo.ico
+SetupIconFile=C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\assets\logos\tecneu-logo.ico
 Password=bI5alComo0Te
 Encryption=yes
 Compression=lzma
@@ -39,8 +39,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; Source: "C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; Source: "C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Source: "C:\Users\Jona\Documents\DesarrolloSoftware\TecneuTagger\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\Jonathan\Documents\DesarrolloSoftware\TecneuTagger\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
